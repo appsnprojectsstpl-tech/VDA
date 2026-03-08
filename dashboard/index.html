@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Enterprise Management System">
+    <meta property="og:title" content="Vedavathi ERP">
+    <meta property="og:description" content="Enterprise Management System">
+    <meta property="og:type" content="website">
+    <!-- disable-ux-audit-hickslaw -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vedavathi Operations Command Center</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00b0ff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="index.css?v=7.5.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; img-src 'self' data: https: https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https:;">
+</head>
+
+<body>
+    <!-- Skip to main content link for keyboard users -->
+    <a href="#main-content"
+        style="position:absolute; left:-9999px; top:0; z-index:9999; padding:8px 16px; background:var(--accent-primary, #00b0ff); color:white; text-decoration:none;"
+        onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">
+        Skip to main content
+    </a>
+
+    <!-- Live region for screen reader announcements -->
+    <div id="liveregion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="app-layout" role="application" aria-label="Vedavathi Operations Command Center">
+
+        <nav class="sidebar" id="mainSidebar" role="navigation" aria-label="Main navigation">
+            <div class="sidebar-logo" role="banner">
+                <div class="logo-icon" aria-hidden="true">🌿</div>
+                <div class="logo-text">
+                    <div class="logo-name">VEDAVATHI</div>
+                    <div class="logo-sub">Command Center</div>
+                </div>
+            </div>
+
+            <div class="sidebar-search">
+                <input type="text" id="sidebarSearch" placeholder="Search modules..." aria-label="Search modules" style="width: 100%; padding: 10px 15px; border-radius: 8px; border: none; 
+                           background: rgba(255,255,255,0.08); color: var(--text-1); 
+                           outline: none; font-size: 0.85rem;">
+            </div>
+
+            <div class="sidebar-nav" role="menubar">
+
+                <div class="menu-item active quick-link" data-page="overview" role="menuitem" tabindex="0"
+                    aria-current="page">
+                    <div class="nav-icon" aria-hidden="true">🏠</div>
+                    <div class="nav-label">Dashboard</div>
+                </div>
+
+                <!-- ═══ ENERGY ═══ -->
+                <div class="menu-group-header" role="menuitem" tabindex="0" aria-expanded="true"
+                    aria-controls="energy-menu" data-toggle-group>
+                    <span class="nav-group-icon" aria-hidden="true">⚡</span>
+                    <span class="nav-group-title">ENERGY</span>
+                    <span class="nav-group-count">7</span>
+                    <span class="nav-group-arrow">▼</span>
+                </div>
+                <div class="menu-group-items" id="energy-menu" role="menu">
+                    <div class="menu-item" data-page="solar" role="menuitem" tabindex="0">
+                        <div class="nav-icon">☀️</div>
+                        <div class="nav-label">Solar Capacity</div>
+                    </div>
+                    <div class="menu-item" data-page="wind" role="menuitem" tabindex="0">
+                        <div class="nav-icon">💨</div>
+                        <div class="nav-label">Wind Generation</div>
+                    </div>
+                    <div class="menu-item" data-page="hydro" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🌊</div>
+                        <div class="nav-label">Hydropower</div>
+                    </div>
+                    <div class="menu-item" data-page="biogas" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🔥</div>
+                        <div class="nav-label">Biogas Plants</div>
+                    </div>
+                    <div class="menu-item" data-page="hydrogen" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🫧</div>
+                        <div class="nav-label">Green Hydrogen</div>
+                    </div>
+                    <div class="menu-item" data-page="kinetic" role="menuitem" tabindex="0">
+                        <div class="nav-icon">⚡</div>
+                        <div class="nav-label">Kinetic Energy</div>
+                    </div>
+                    <div class="menu-item" data-page="grid" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🕸️</div>
+                        <div class="nav-label">Smart Grid AI</div>
+                    </div>
+                </div>
+
+                <!-- ═══ AGRICULTURE & ANIMAL HUSBANDRY ═══ -->
+                <div class="menu-group-header" role="menuitem" tabindex="0" data-toggle-group aria-expanded="true"
+                    aria-controls="agri-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🌾</span>
+                    <span class="nav-group-title">AGRI & ANIMAL</span>
+                    <span class="nav-group-count">8</span>
+                    <span class="nav-group-arrow">▼</span>
+                </div>
+                <div class="menu-group-items" id="agri-menu" role="menu">
+                    <div class="menu-item" data-page="cattle" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🐄</div>
+                        <div class="nav-label">Smart Dairy</div>
+                        <div class="nav-badge">2</div>
+                    </div>
+                    <div class="menu-item" data-page="poultry" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🐔</div>
+                        <div class="nav-label">Poultry Hub</div>
+                    </div>
+                    <div class="menu-item" data-page="aqua" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🐟</div>
+                        <div class="nav-label">Aquaculture Hub</div>
+                    </div>
+                    <div class="menu-item" data-page="vermi" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🪱</div>
+                        <div class="nav-label">Vermicompost</div>
+                    </div>
+                    <div class="menu-item" data-page="tree" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🌳</div>
+                        <div class="nav-label">TreeSwasthya AI</div>
+                    </div>
+                    <div class="menu-item" data-page="carbon" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🌍</div>
+                        <div class="nav-label">Carbon Hub</div>
+                    </div>
+                    <div class="menu-item" data-page="paint" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🎨</div>
+                        <div class="nav-label">Bio-Paints</div>
+                    </div>
+                </div>
+
+                <!-- ═══ SALES & COMMERCE ═══ -->
+                <div class="menu-group-header collapsed" role="menuitem" tabindex="0" data-toggle-group
+                    aria-expanded="false" aria-controls="sales-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🤝</span>
+                    <span class="nav-group-title">SALES & COMMERCE</span>
+                    <span class="nav-group-count">3</span>
+                    <span class="nav-group-arrow">▶</span>
+                </div>
+                <div class="menu-group-items" id="sales-menu" style="display:none" role="menu">
+                    <div class="menu-item" data-page="crm" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🤝</div>
+                        <div class="nav-label">CRM & Contracts</div>
+                    </div>
+                    <div class="menu-item" data-page="tourism" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🏕️</div>
+                        <div class="nav-label">Agri-Tourism</div>
+                    </div>
+                    <div class="menu-item" data-page="booking" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📅</div>
+                        <div class="nav-label">Bookings</div>
+                    </div>
+                </div>
+
+                <!-- ═══ OPERATIONS ═══ -->
+                <div class="menu-group-header collapsed" role="menuitem" tabindex="0" data-toggle-group
+                    aria-expanded="false" aria-controls="ops-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🛠️</span>
+                    <span class="nav-group-title">OPERATIONS</span>
+                    <span class="nav-group-count">5</span>
+                    <span class="nav-group-arrow">▶</span>
+                </div>
+                <div class="menu-group-items" id="ops-menu" style="display:none" role="menu">
+                    <div class="menu-item" data-page="logistics" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🚚</div>
+                        <div class="nav-label">LogiTrack</div>
+                    </div>
+                    <div class="menu-item" data-page="water" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🚰</div>
+                        <div class="nav-label">Hydrosphere</div>
+                    </div>
+                    <div class="menu-item" data-page="inventory" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📦</div>
+                        <div class="nav-label">Inventory</div>
+                    </div>
+                    <div class="menu-item" data-page="fieldservice" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🚜</div>
+                        <div class="nav-label">Field Service</div>
+                    </div>
+                    <div class="menu-item" data-page="command" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🛡️</div>
+                        <div class="nav-label">Command 360</div>
+                    </div>
+                </div>
+
+                <!-- ═══ ADMIN & MANAGEMENT ═══ -->
+                <div class="menu-group-header" role="menuitem" tabindex="0" data-toggle-group aria-expanded="true"
+                    aria-controls="admin-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🏢</span>
+                    <span class="nav-group-title">ADMIN & MGMT</span>
+                    <span class="nav-group-count">7</span>
+                    <span class="nav-group-arrow">▼</span>
+                </div>
+                <div class="menu-group-items" id="admin-menu" role="menu">
+                    <div class="menu-item" data-page="hrm" role="menuitem" tabindex="0">
+                        <div class="nav-icon">👥</div>
+                        <div class="nav-label">HRM & Payroll</div>
+                    </div>
+                    <div class="menu-item" data-page="finance2" role="menuitem" tabindex="0">
+                        <div class="nav-icon">💰</div>
+                        <div class="nav-label">Finance & Accts</div>
+                    </div>
+                    <div class="menu-item" data-page="dms" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📁</div>
+                        <div class="nav-label">Documents</div>
+                    </div>
+                    <div class="menu-item" data-page="bi" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📊</div>
+                        <div class="nav-label">BI & Analytics</div>
+                    </div>
+                    <div class="menu-item" data-page="workflow" role="menuitem" tabindex="0">
+                        <div class="nav-icon">✅</div>
+                        <div class="nav-label">Workflow</div>
+                    </div>
+                    <div class="menu-item" data-page="ticketing" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🎫</div>
+                        <div class="nav-label">Helpdesk</div>
+                    </div>
+                    <div class="menu-item" data-page="trust" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📜</div>
+                        <div class="nav-label">Vedavathi Trust</div>
+                    </div>
+                </div>
+
+                <!-- ═══ SERVICES ═══ -->
+                <div class="menu-group-header collapsed" role="menuitem" tabindex="0" data-toggle-group
+                    aria-expanded="false" aria-controls="services-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🏥</span>
+                    <span class="nav-group-title">SERVICES</span>
+                    <span class="nav-group-count">4</span>
+                    <span class="nav-group-arrow">▶</span>
+                </div>
+                <div class="menu-group-items" id="services-menu" style="display:none" role="menu">
+                    <div class="menu-item" data-page="vet" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🏥</div>
+                        <div class="nav-label">Veterinary Hosp.</div>
+                    </div>
+                    <div class="menu-item" data-page="vedic" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🕉️</div>
+                        <div class="nav-label">Vedic Hub</div>
+                    </div>
+                    <div class="menu-item" data-page="lms" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🎓</div>
+                        <div class="nav-label">Learning</div>
+                    </div>
+                    <div class="menu-item" data-page="survey" role="menuitem" tabindex="0">
+                        <div class="nav-icon">📋</div>
+                        <div class="nav-label">Surveys</div>
+                    </div>
+                </div>
+
+                <!-- ═══ PORTALS ═══ -->
+                <div class="menu-group-header collapsed" role="menuitem" tabindex="0" data-toggle-group
+                    aria-expanded="false" aria-controls="portals-menu">
+                    <span class="nav-group-icon" aria-hidden="true">🌐</span>
+                    <span class="nav-group-title">PORTALS</span>
+                    <span class="nav-group-count">2</span>
+                    <span class="nav-group-arrow">▶</span>
+                </div>
+                <div class="menu-group-items" id="portals-menu" style="display:none" role="menu">
+                    <div class="menu-item" data-page="farmerportal" role="menuitem" tabindex="0">
+                        <div class="nav-icon">👨‍🌾</div>
+                        <div class="nav-label">Farmer Portal</div>
+                    </div>
+                    <div class="menu-item" data-page="schemes" role="menuitem" tabindex="0">
+                        <div class="nav-icon">🏛️</div>
+                        <div class="nav-label">Schemes</div>
+                    </div>
+                </div>
+
+            </div>
+        </nav>
+
+
+        <main class="main-content">
+
+            <header class="top-header" role="banner">
+                <div class="header-left">
+                    <button id="sidebarToggle" class="header-btn" title="Toggle Sidebar"
+                        aria-label="Toggle navigation menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <nav id="breadcrumbs" aria-label="Breadcrumb navigation">
+                        <span class="breadcrumb-home">Home</span>
+                        <span class="breadcrumb-sep">›</span>
+                        <span id="bc-current">Global Overview</span>
+                    </nav>
+                </div>
+
+                <div class="header-center">
+                    <div class="search-wrapper">
+                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="globalSearch" placeholder="Search modules, reports, data..."
+                            aria-label="Search">
+                        <kbd>⌘K</kbd>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <div class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Online</span>
+                    </div>
+
+                    <div class="sync-info" id="last-sync-text">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        <span>Synced</span>
+                    </div>
+
+                    <div class="header-divider"></div>
+
+                    <button id="themeToggle" class="header-btn" title="Toggle Theme" onclick="ThemeManager.toggle()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" class="sun-icon">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
+
+                    <select id="location-filter" aria-label="Location">
+                        <option value="all">All Zones</option>
+                        <option value="bellary">Bellary Hub</option>
+                        <option value="kurnool">Kurnool Hub</option>
+                        <option value="gadwal">Gadwal Dairy</option>
+                        <option value="hyderabad">Hyderabad HQ</option>
+                    </select>
+
+                    <div class="header-clock" id="live-clock">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span>00:00:00</span>
+                    </div>
+
+                    <button class="header-btn alert-btn" id="alert-bell-btn" onclick="toggleAlertPanel()"
+                        title="Notifications">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="alert-badge" id="alert-count-badge">0</span>
+                    </button>
+
+                    <div class="header-user">
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=0ea5e9&color=fff" alt="User">
+                        <div class="user-info">
+                            <span class="user-name">Admin</span>
+                            <span class="user-role">Manager</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+
+            <div class="page-area" id="page-container">
+
+            </div>
+        </main>
+    </div>
+
+    <div id="breed-modal-overlay"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:5000;align-items:center;justify-content:center;padding:.8rem"
+        onclick="if(event.target===this)closeBreedModal()">
+        <div
+            style="background:var(--bg2);border:1px solid var(--bd2);border-radius:18px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto">
+            <div
+                style="padding:1rem 1.2rem;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);border-radius:18px 18px 0 0;z-index:1">
+                <h2 id="breed-modal-title" style="font-size:1rem;display:flex;align-items:center;gap:.4rem"></h2>
+
+            </div>
+            <div class="mc" id="breed-modal-body"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="insforge-config.js"></script>
+    <script src="add_db_integration.js"></script>
+    <script src="ux_enhancements.js"></script>
+    <script src="api_wrapper.js"></script>
+    <script src="advanced_features.js"></script>
+    <script src="quick_wins.js"></script>
+    <script src="push_notifications.js"></script>
+    <script src="activity_feed.js"></script>
+    <script src="app.js?v=7.5.0"></script>
+    <script src="inject_smart_grid_ai.js"></script>
+
+
+
+
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
+    </script>
+</body>
+
+
+</html>

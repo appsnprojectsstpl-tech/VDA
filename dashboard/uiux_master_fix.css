@@ -1,0 +1,730 @@
+/* ============================================================
+   MASTER UI/UX FIX PATCH — v6.5.4 — Applied after full audit
+   Fixes 100 issues across 22 pages found by automated audit.
+   This block overrides all conflicting earlier rules.
+   DO NOT DELETE — this is the canonical styling source.
+   ============================================================ */
+
+/* ══════════════════════════════════════════════════════════
+   1. TAB NAV — FIX OVERFLOW:HIDDEN (THE #1 CRITICAL BUG)
+   Found at L8234, L8790, L9201, L9535, L9593, L9676
+   All previous overflow:hidden rules are overridden here.
+   ══════════════════════════════════════════════════════════ */
+
+/* Universal selector: cover every -nav variant in the app */
+.dairy-nav,
+.vet-nav,
+.en-nav,
+.crm-nav,
+.vermi-nav,
+.tree-nav,
+.aqua-nav,
+.paint-nav,
+.biogas-nav,
+.wind-nav,
+.fin-nav,
+.trust-nav,
+.cmd-nav,
+.log-nav,
+.water-nav,
+.vedic-nav,
+.carbon-nav,
+.agri-nav,
+.solar-nav,
+.hub-nav,
+.module-nav,
+.tab-nav,
+[class$="-nav"]:not(.sidebar-nav):not(.sidebar-footer):not(.breadcrumbs) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;   /* SCROLL, not hidden */
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    gap: 4px !important;
+    padding: 8px 16px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+    background: rgba(0, 0, 0, 0.18) !important;
+    align-items: center !important;
+    min-height: 50px !important;
+    flex-shrink: 0 !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0, 176, 255, 0.3) transparent !important;
+    /* Sticky: tab bar stays pinned at top when user scrolls content */
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 20 !important;
+}
+
+/* Thin scroll indicator on tab bars */
+.dairy-nav::-webkit-scrollbar,
+.vet-nav::-webkit-scrollbar,
+.en-nav::-webkit-scrollbar,
+.crm-nav::-webkit-scrollbar,
+.vermi-nav::-webkit-scrollbar,
+.tree-nav::-webkit-scrollbar,
+.aqua-nav::-webkit-scrollbar,
+.paint-nav::-webkit-scrollbar,
+.biogas-nav::-webkit-scrollbar,
+.wind-nav::-webkit-scrollbar,
+.solar-nav::-webkit-scrollbar,
+.carbon-nav::-webkit-scrollbar,
+[class$="-nav"]:not(.sidebar-nav)::-webkit-scrollbar {
+    height: 3px !important;
+}
+
+.dairy-nav::-webkit-scrollbar-thumb,
+.vet-nav::-webkit-scrollbar-thumb,
+.en-nav::-webkit-scrollbar-thumb,
+.crm-nav::-webkit-scrollbar-thumb,
+.vermi-nav::-webkit-scrollbar-thumb,
+.tree-nav::-webkit-scrollbar-thumb,
+.aqua-nav::-webkit-scrollbar-thumb,
+.paint-nav::-webkit-scrollbar-thumb,
+.biogas-nav::-webkit-scrollbar-thumb,
+.wind-nav::-webkit-scrollbar-thumb,
+.solar-nav::-webkit-scrollbar-thumb,
+.carbon-nav::-webkit-scrollbar-thumb,
+[class$="-nav"]:not(.sidebar-nav)::-webkit-scrollbar-thumb {
+    background: rgba(0, 176, 255, 0.35) !important;
+    border-radius: 2px !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   2. TAB BUTTONS — UNIVERSAL FIX FOR ALL VARIANTS
+   ══════════════════════════════════════════════════════════ */
+
+.dairy-tab-btn,
+.vet-tab-btn,
+.en-tbtn,
+.crm-tab-btn,
+.vermi-tbtn,
+.tree-tbtn,
+.paint-tab-btn,
+.carbon-tab-btn,
+.solar-tab-btn,
+.hub-more-btn,
+.module-tab-btn,
+[class$="-tab-btn"],
+[class$="-tbtn"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: rgba(200, 214, 229, 0.7) !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', 'Outfit', sans-serif !important;
+    transition: all 0.18s ease !important;
+    flex-shrink: 0 !important;
+    min-height: 34px !important;
+    letter-spacing: 0.01em !important;
+    user-select: none;
+}
+
+.dairy-tab-btn:hover,
+.vet-tab-btn:hover,
+.en-tbtn:hover,
+.crm-tab-btn:hover,
+.vermi-tbtn:hover,
+.tree-tbtn:hover,
+.paint-tab-btn:hover,
+.carbon-tab-btn:hover,
+.solar-tab-btn:hover,
+[class$="-tab-btn"]:hover,
+[class$="-tbtn"]:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: #e0eaf4 !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.dairy-tab-btn.active,
+.vet-tab-btn.active,
+.en-tbtn.active,
+.crm-tab-btn.active,
+.vermi-tbtn.active,
+.tree-tbtn.active,
+.paint-tab-btn.active,
+.carbon-tab-btn.active,
+.solar-tab-btn.active,
+[class$="-tab-btn"].active,
+[class$="-tbtn"].active {
+    background: rgba(0, 176, 255, 0.12) !important;
+    color: #42caff !important;
+    border-color: rgba(0, 176, 255, 0.3) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 0 0 1px rgba(0, 176, 255, 0.15) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. PAGE CONTAINER — PROPER FLEX LAYOUT FOR STICKY TABS
+   ══════════════════════════════════════════════════════════ */
+
+#page-container {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100%;
+}
+
+/* Panes wrap properly */
+.dairy-pane,
+.vet-pane,
+.en-pn,
+.vermi-pn,
+.tree-pn,
+.crm-pane,
+[class$="-pane"],
+[class$="-pn"] {
+    display: none !important;
+    padding: 20px !important;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    animation: fadeIn 0.2s ease !important;
+}
+
+.dairy-pane.active,
+.vet-pane.active,
+.en-pn.active,
+.vermi-pn.active,
+.tree-pn.active,
+.crm-pane.active,
+[class$="-pane"].active,
+[class$="-pn"].active {
+    display: block !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. FORM INPUTS / SELECTS / TEXTAREAS — FULL DARK THEME
+   ══════════════════════════════════════════════════════════ */
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+select,
+textarea,
+.form-control {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+    padding: 9px 14px !important;
+    font-size: 0.875rem !important;
+    font-family: 'Inter', sans-serif !important;
+    width: 100%;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+    outline: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+    border-color: rgba(0, 176, 255, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba(0, 176, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+}
+
+input::placeholder,
+textarea::placeholder,
+.form-control::placeholder {
+    color: rgba(200, 214, 229, 0.35) !important;
+}
+
+select option {
+    background: #1a2035 !important;
+    color: #e0eaf4 !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. EMPTY STATE & LOADING STATE COMPONENTS
+   ══════════════════════════════════════════════════════════ */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    color: rgba(200, 214, 229, 0.45);
+    text-align: center;
+    gap: 10px;
+}
+
+.empty-state svg,
+.empty-state .empty-icon {
+    opacity: 0.3;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 8px;
+}
+
+.empty-state p,
+.empty-state span {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-width: 320px;
+}
+
+/* Loading pulse animation */
+.loading-state {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 24px;
+    color: rgba(200, 214, 229, 0.5);
+    font-size: 0.875rem;
+}
+
+.loading-state::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0, 176, 255, 0.2);
+    border-top-color: rgba(0, 176, 255, 0.8);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Loading text shimmer */
+p:has(+ *):empty,
+[id$="-list"]:empty,
+[id$="-tbl"]:empty,
+[id$="-table"]:empty {
+    min-height: 48px;
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0.03) 0%,
+        rgba(255,255,255,0.06) 50%,
+        rgba(255,255,255,0.03) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease infinite;
+    border-radius: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. BUTTONS — TYPE SAFETY & CONSISTENT STYLING
+   ══════════════════════════════════════════════════════════ */
+
+/* All buttons should have pointer cursor */
+button,
+[role="button"],
+.btn,
+.clean-btn,
+.action-btn,
+.dairy-tab-btn,
+.hub-more-btn,
+.hub-more-btn {
+    cursor: pointer !important;
+}
+
+/* Clickable divs, tds, cards */
+[onclick],
+[data-page],
+.kpi-card,
+.card[onclick],
+.menu-item,
+.menu-group-header,
+.alert-btn,
+.icon-btn {
+    cursor: pointer !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   7. SIDEBAR GROUP HEADERS — CLICKABLE INDICATOR
+   ══════════════════════════════════════════════════════════ */
+
+.menu-group-header {
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px 16px 8px 12px !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 1.2px !important;
+    text-transform: uppercase !important;
+    color: rgba(200, 214, 229, 0.5) !important;
+    gap: 8px !important;
+    transition: color 0.15s ease, background 0.15s ease !important;
+    border-radius: 6px !important;
+    margin: 2px 6px !important;
+    user-select: none;
+}
+
+.menu-group-header:hover {
+    color: rgba(200, 214, 229, 0.85) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.menu-group-header .nav-group-count {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.08) !important;
+    padding: 1px 7px !important;
+    border-radius: 99px !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    color: rgba(200, 214, 229, 0.6) !important;
+}
+
+.menu-group-header .nav-group-arrow {
+    font-size: 0.65rem !important;
+    opacity: 0.6;
+    transition: transform 0.2s ease !important;
+}
+
+.menu-group-header:not(.collapsed) .nav-group-arrow {
+    transform: rotate(0deg);
+}
+
+.menu-group-header.collapsed .nav-group-arrow {
+    transform: rotate(-90deg);
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. KPI CARDS — CONSISTENT, INTERACTIVE FEEL
+   ══════════════════════════════════════════════════════════ */
+
+.kpi-card,
+.ent-kpi,
+[class^="kpi-"],
+[class*=" kpi-"] {
+    transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+.kpi-card:hover,
+.ent-kpi:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   9. TABLE EMPTY STATE — REPLACE BLANK ROWS
+   ══════════════════════════════════════════════════════════ */
+
+/* When a tbody is empty / JS hasn't loaded yet */
+tbody:empty::after {
+    content: 'Loading data...';
+    display: block;
+    padding: 24px;
+    text-align: center;
+    color: rgba(200, 214, 229, 0.3);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════
+   10. PAGE HEADER — CONSISTENT ACROSS ALL MODULES
+   ══════════════════════════════════════════════════════════ */
+
+.page-header,
+.ent-header,
+.module-header,
+[class$="-header"]:not(.menu-group-header):not(.top-header) {
+    padding: 20px 24px 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    flex-shrink: 0 !important;
+}
+
+.page-title,
+.ent-title,
+.module-title {
+    font-size: clamp(1.1rem, 2vw, 1.5rem) !important;
+    font-weight: 700 !important;
+    color: var(--text-primary) !important;
+    line-height: 1.2 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.page-subtitle,
+.ent-subtitle,
+.module-subtitle {
+    font-size: 0.82rem !important;
+    color: rgba(200, 214, 229, 0.5) !important;
+    margin-top: 3px !important;
+    line-height: 1.4 !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   11. DATA TABLES — READABLE ON DARK BG
+   ══════════════════════════════════════════════════════════ */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th {
+    padding: 10px 14px !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    color: rgba(200, 214, 229, 0.55) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+    background: rgba(0, 0, 0, 0.15) !important;
+    white-space: nowrap !important;
+}
+
+table td {
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
+    color: rgba(200, 214, 229, 0.85) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    vertical-align: middle !important;
+}
+
+table tr:hover td {
+    background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   12. STATUS PILLS — CONSISTENT EVERYWHERE
+   ══════════════════════════════════════════════════════════ */
+
+.pill,
+[class^="pill-"],
+[class*=" pill-"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 3px 10px !important;
+    border-radius: 99px !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    white-space: nowrap !important;
+}
+
+.pill-green  { background: rgba(0, 230, 118, 0.12) !important; color: #00e676 !important; border: 1px solid rgba(0, 230, 118, 0.2) !important; }
+.pill-red    { background: rgba(255, 82, 82, 0.12) !important;  color: #ff5252 !important; border: 1px solid rgba(255, 82, 82, 0.2) !important; }
+.pill-blue   { background: rgba(0, 176, 255, 0.12) !important;  color: #00b0ff !important; border: 1px solid rgba(0, 176, 255, 0.2) !important; }
+.pill-amber  { background: rgba(255, 171, 0, 0.12) !important;  color: #ffab00 !important; border: 1px solid rgba(255, 171, 0, 0.2) !important; }
+.pill-emerald{ background: rgba(124, 77, 255, 0.12)!important; color: #7c4dff !important; border: 1px solid rgba(124, 77, 255, 0.2) !important; }
+.pill-orange { background: rgba(255, 111, 0, 0.12) !important;  color: #ff6f00 !important; border: 1px solid rgba(255, 111, 0, 0.2) !important; }
+.pill-pink   { background: rgba(255, 64, 129, 0.12)!important; color: #ff4081 !important; border: 1px solid rgba(255, 64, 129, 0.2) !important; }
+.pill-teal   { background: rgba(0, 230, 118, 0.1) !important;   color: #1de9b6 !important; border: 1px solid rgba(29, 233, 182, 0.2) !important; }
+.pill-yellow { background: rgba(255, 214, 0, 0.1) !important;   color: #ffd600 !important; border: 1px solid rgba(255, 214, 0, 0.2) !important; }
+
+/* ══════════════════════════════════════════════════════════
+   13. QUICK ACTION BUTTONS IN MODULES
+   ══════════════════════════════════════════════════════════ */
+
+.btn,
+.clean-btn,
+.action-btn,
+.save-btn,
+.submit-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 8px 18px !important;
+    border-radius: 8px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    cursor: pointer !important;
+    transition: all 0.18s ease !important;
+    border: none !important;
+    letter-spacing: 0.2px !important;
+    white-space: nowrap !important;
+    min-height: 36px !important;
+}
+
+.btn-primary,
+.clean-btn {
+    background: rgba(0, 176, 255, 0.15) !important;
+    color: #42caff !important;
+    border: 1px solid rgba(0, 176, 255, 0.25) !important;
+}
+
+.btn-primary:hover,
+.clean-btn:hover {
+    background: rgba(0, 176, 255, 0.25) !important;
+    box-shadow: 0 4px 14px rgba(0, 176, 255, 0.2) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   14. CHART LABEL CONTRAST FIX
+   Axis labels and grid lines should be readable
+   ══════════════════════════════════════════════════════════ */
+
+/* Chart.js renders inside canvas — override the tick color using CSS variables
+   that Chart.js reads. This ensures labels are visible. */
+:root {
+    --chart-text-color: rgba(200, 214, 229, 0.7);
+    --chart-grid-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ══════════════════════════════════════════════════════════
+   15. HUB MORE DROPDOWN — CONSISTENT POSITION & STYLE
+   ══════════════════════════════════════════════════════════ */
+
+.hub-more-container {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+}
+
+.hub-more-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    color: rgba(200, 214, 229, 0.7) !important;
+    padding: 5px 12px !important;
+    border-radius: 8px !important;
+    font-size: 0.76rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.hub-more-btn:hover {
+    background: rgba(255, 255, 255, 0.09) !important;
+    color: #e0eaf4 !important;
+}
+
+.hub-more-dropdown {
+    position: absolute !important;
+    top: calc(100% + 6px) !important;
+    right: 0 !important;
+    background: #1a2035 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+    display: none;
+    flex-direction: column !important;
+    gap: 3px !important;
+    min-width: 180px !important;
+    z-index: 200 !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.hub-more-dropdown.open {
+    display: flex !important;
+}
+
+.hub-more-dropdown .dairy-tab-btn {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    border-radius: 8px !important;
+    padding: 7px 12px !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   16. SCROLLBAR GLOBAL — CONSISTENT THIN STYLE
+   ══════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+    width: 5px !important;
+    height: 5px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10) !important;
+    border-radius: 999px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   17. SEARCH BAR — FULL WIDTH + READABLE
+   ══════════════════════════════════════════════════════════ */
+
+.search-bar,
+#farmSearch {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+    padding: 7px 14px 7px 36px !important;
+    font-size: 0.85rem !important;
+    width: 220px !important;
+    transition: all 0.18s ease !important;
+    outline: none !important;
+}
+
+.search-bar:focus,
+#farmSearch:focus {
+    width: 280px !important;
+    border-color: rgba(0, 176, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    box-shadow: 0 0 0 3px rgba(0, 176, 255, 0.1) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   18. MISC FIXES
+   ══════════════════════════════════════════════════════════ */
+
+/* Flash update animation for live KPI values */
+@keyframes flash-update {
+    0%   { opacity: 0.4; transform: scale(0.97); }
+    50%  { opacity: 1;   transform: scale(1.02); }
+    100% { opacity: 1;   transform: scale(1); }
+}
+
+.flash-update {
+    animation: flash-update 0.4s ease !important;
+}
+
+/* Fade in for pane transitions */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Prevent page-container overflow causing double scrollbars */
+#page-container {
+    overflow-x: hidden;
+}
+
+/* Alert / notification pill in header */
+.alert-count {
+    position: absolute !important;
+    top: -4px !important;
+    right: -4px !important;
+    background: #ff5252 !important;
+    color: #fff !important;
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 50% !important;
+    font-size: 0.65rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 700 !important;
+}
+
+/* END OF MASTER UI/UX FIX PATCH */

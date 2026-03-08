@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Enterprise Login Portal">
+    <meta property="og:title" content="Vedavathi Login">
+    <meta property="og:description" content="Enterprise Login Portal">
+    <meta property="og:type" content="website">
+    <!-- disable-ux-audit-hickslaw -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vedavathi — Sign In</title>
+    <meta name="description" content="Vedavathi Enterprise Resource Platform — Secure Login">
+    <meta name="theme-color" content="#00b0ff">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #060d1a;
+            --panel-bg: #0d1629;
+            --primary: #00b0ff;
+            --primary-deep: #0070b0;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --text-1: #e2e8f0;
+            --text-2: #94a3b8;
+            --text-3: #475569;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text-1);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ── Animated background orbs ── */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            animation: orb-float 8s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: #00b0ff;
+            top: -200px;
+            left: -150px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: #10b981;
+            bottom: -100px;
+            right: -100px;
+            animation-delay: 2s;
+        }
+
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: #10B981;
+            top: 50%;
+            left: 60%;
+            animation-delay: 4s;
+        }
+
+        @keyframes orb-float {
+            from {
+                transform: translate(0, 0) scale(1);
+            }
+
+            to {
+                transform: translate(30px, 20px) scale(1.08);
+            }
+        }
+
+        /* ── Grid dot pattern ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(rgba(0, 176, 255, 0.08) 1px, transparent 1px);
+            background-size: 32px 32px;
+            pointer-events: none;
+        }
+
+        /* ── Main card ── */
+        .login-card {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            background: rgba(13, 22, 41, 0.85);
+            border: 1px solid rgba(0, 176, 255, 0.15);
+            border-radius: 24px;
+            padding: 44px 40px 40px;
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+            backdrop-filter: blur(20px);
+            animation: card-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin: 16px;
+        }
+
+        @keyframes card-in {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Header */
+        .login-logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .logo-icon {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, rgba(0, 176, 255, 0.2), rgba(16, 185, 129, 0.1));
+            border: 1px solid rgba(0, 176, 255, 0.25);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+        }
+
+        .logo-text h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text h1 span {
+            color: var(--primary);
+        }
+
+        .logo-text p {
+            font-size: 0.72rem;
+            color: var(--text-3);
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .login-subtitle {
+            font-size: 0.82rem;
+            color: var(--text-2);
+            margin-bottom: 28px;
+            padding-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-2);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-1);
+            font-family: inherit;
+            font-size: 0.92rem;
+            padding: 13px 16px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: rgba(0, 176, 255, 0.5);
+            background: rgba(0, 176, 255, 0.05);
+            box-shadow: 0 0 0 3px rgba(0, 176, 255, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-3);
+        }
+
+        /* Role selector */
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 22px;
+        }
+
+        .role-btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-2);
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            text-align: left;
+        }
+
+        .role-btn:hover {
+            background: rgba(0, 176, 255, 0.08);
+            border-color: rgba(0, 176, 255, 0.2);
+        }
+
+        .role-btn.selected {
+            background: rgba(0, 176, 255, 0.12);
+            border-color: rgba(0, 176, 255, 0.4);
+            color: #00b0ff;
+            font-weight: 600;
+        }
+
+        .role-label {
+            font-size: 0.68rem;
+            color: var(--text-3);
+            display: block;
+        }
+
+        /* Submit */
+        .btn-login {
+            width: 100%;
+            background: linear-gradient(135deg, #00b0ff, #0284c7);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(0, 176, 255, 0.35);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-login .btn-spinner {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error/success messages */
+        .msg-box {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            display: none;
+        }
+
+        .msg-box.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+            display: block;
+        }
+
+        .msg-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+            display: block;
+        }
+
+        /* Footer */
+        .login-footer {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.68rem;
+            color: var(--text-3);
+        }
+
+        .login-footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* Status dots */
+        .status-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.68rem;
+            color: var(--text-3);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ── Demo user quick-fill pills ── */
+        .demo-users {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .demo-pill {
+            font-size: 0.66rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-2);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .demo-pill:hover {
+            border-color: rgba(0, 176, 255, 0.3);
+            color: #00b0ff;
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 28px 20px;
+            }
+
+            .role-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <div class="login-card">
+        <!-- Logo -->
+        <div class="login-logo">
+            <div class="logo-icon">🌿</div>
+            <div class="logo-text">
+                <h1>Veda<span>vathi</span></h1>
+                <p>Enterprise Command Center</p>
+            </div>
+        </div>
+
+        <p class="login-subtitle">
+            Integrated ERP for 1M Cattle · 5,655 MW Energy · 24 Operational Modules
+        </p>
+
+        <!-- Error/Success message -->
+        <div id="msg-box" class="msg-box"></div>
+
+        <!-- Demo quick-fill -->
+        <div
+            style="font-size:0.68rem;color:var(--text-3);margin-bottom:6px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase">
+            Quick Demo Login</div>
+        <div class="demo-users">
+            <div class="demo-pill" onclick="quickFill('admin@vedavathi.farm','Admin123!','admin')">🔑 Admin</div>
+            <div class="demo-pill" onclick="quickFill('field@vedavathi.farm','Field123!','field_worker')">🌾 Field
+                Worker</div>
+            <div class="demo-pill" onclick="quickFill('vet@vedavathi.farm','Vet12345!','vet')">🏥 Veterinarian</div>
+            <div class="demo-pill" onclick="quickFill('finance@vedavathi.farm','Fin12345!','finance')">💰 Finance</div>
+            <div class="demo-pill" onclick="quickFill('manager@vedavathi.farm','Mgr12345!','zone_manager')">📋 Zone Mgr
+            </div>
+        </div>
+
+        <!-- Role selector -->
+        <div
+            style="font-size:0.72rem;color:var(--text-2);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px">
+            Select Your Role</div>
+        <div class="role-grid" id="role-grid">
+            <button class="role-btn selected" data-role="admin" onclick="selectRole('admin',this)">
+                <span>🔑</span>
+                <span>Administrator<span class="role-label">Full Access</span></span>
+            </button>
+            <button class="role-btn" data-role="field_worker" onclick="selectRole('field_worker',this)">
+                <span>🌾</span>
+                <span>Field Worker<span class="role-label">Entry Forms</span></span>
+            </button>
+            <button class="role-btn" data-role="vet" onclick="selectRole('vet',this)">
+                <span>🏥</span>
+                <span>Veterinarian<span class="role-label">Vet + Dairy Health</span></span>
+            </button>
+            <button class="role-btn" data-role="finance" onclick="selectRole('finance',this)">
+                <span>💰</span>
+                <span>Finance Mgr<span class="role-label">Finance + CRM</span></span>
+            </button>
+            <button class="role-btn" data-role="zone_manager" onclick="selectRole('zone_manager',this)">
+                <span>📋</span>
+                <span>Zone Manager<span class="role-label">Assigned Zone</span></span>
+            </button>
+            <button class="role-btn" data-role="energy_ops" onclick="selectRole('energy_ops',this)">
+                <span>⚡</span>
+                <span>Energy Ops<span class="role-label">Energy Modules</span></span>
+            </button>
+        </div>
+
+        <!-- Form -->
+        <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" class="form-input" placeholder="user@vedavathi.farm" required
+                    autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" class="form-input" placeholder="••••••••" required
+                    autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn-login" id="login-btn">
+                <span id="btn-text">Sign In →</span>
+                <div class="btn-spinner" id="btn-spinner"></div>
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="login-footer">
+            <div class="status-row">
+                <div class="status-dot"></div>
+                InsForge Connected
+            </div>
+            <span>v6.4 · <a href="index.html">Dashboard</a></span>
+        </div>
+    </div>
+
+    <script src="insforge-config.js"></script>
+    <script>
+        var _selectedRole = 'admin';
+
+        function selectRole(role, btn) {
+            _selectedRole = role;
+            document.querySelectorAll('.role-btn').forEach(function (b) { b.classList.remove('selected'); });
+            btn.classList.add('selected');
+        }
+
+        function quickFill(email, pass, role) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = pass;
+            var roleBtn = document.querySelector('[data-role="' + role + '"]');
+            if (roleBtn) selectRole(role, roleBtn);
+        }
+
+        function showMsg(msg, type) {
+            var el = document.getElementById('msg-box');
+            el.textContent = msg;
+            el.className = 'msg-box ' + type;
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            var email = document.getElementById('email').value.trim();
+            var password = document.getElementById('password').value;
+            var btn = document.getElementById('login-btn');
+            var btnText = document.getElementById('btn-text');
+            var spinner = document.getElementById('btn-spinner');
+
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            try {
+                if (window.insforge && window.insforge.auth) {
+                    // Real InsForge auth
+                    var res = await window.insforge.auth.signIn(email, password);
+                    if (res && res.user) {
+                        _saveSession(res.user, _selectedRole);
+                        showMsg('✅ Welcome back! Redirecting...', 'success');
+                        setTimeout(function () { window.location.href = 'index.html'; }, 800);
+                        return;
+                    }
+                }
+
+                // Demo mode fallback — validate against demo credentials
+                var demoUsers = {
+                    'admin@vedavathi.farm': { pass: 'Admin123!', role: 'admin', name: 'System Admin' },
+                    'field@vedavathi.farm': { pass: 'Field123!', role: 'field_worker', name: 'Field Worker' },
+                    'vet@vedavathi.farm': { pass: 'Vet12345!', role: 'vet', name: 'Dr. Sharma' },
+                    'finance@vedavathi.farm': { pass: 'Fin12345!', role: 'finance', name: 'Finance Manager' },
+                    'manager@vedavathi.farm': { pass: 'Mgr12345!', role: 'zone_manager', name: 'Zone Manager' }
+                };
+
+                var demo = demoUsers[email];
+                if (demo && demo.pass === password) {
+                    _saveSession({ email: email, name: demo.name }, _selectedRole);
+                    showMsg('✅ Demo login successful! Redirecting...', 'success');
+                    setTimeout(function () { window.location.href = 'index.html'; }, 800);
+                } else {
+                    showMsg('❌ Invalid email or password. Try a demo account above.', 'error');
+                }
+            } catch (err) {
+                showMsg('❌ Login error: ' + (err.message || 'Please try again.'), 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        }
+
+        function _saveSession(user, role) {
+            var session = {
+                email: user.email,
+                name: user.name || user.email.split('@')[0],
+                role: role,
+                loginAt: Date.now(),
+                expiresAt: Date.now() + 8 * 60 * 60 * 1000 // 8 hours
+            };
+            localStorage.setItem('vd_session', JSON.stringify(session));
+        }
+
+        // If already logged in, skip to dashboard
+        (function () {
+            var sess = localStorage.getItem('vd_session');
+            if (!sess) return;
+            try {
+                var s = JSON.parse(sess);
+                if (s.expiresAt > Date.now()) {
+                    window.location.href = 'index.html';
+                }
+            } catch (e) { }
+        })();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="v" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  
+  <!-- Stylized 'V' for Vedavathi forming a leaf/farm motif -->
+  <path d="M160 140 L256 360 L352 140 L290 140 L256 260 L222 140 Z" fill="url(#v)"/>
+  
+  <!-- Subtle tech/node connection dots -->
+  <circle cx="160" cy="140" r="16" fill="#10B981"/>
+  <circle cx="352" cy="140" r="16" fill="#10B981"/>
+  <circle cx="256" cy="360" r="20" fill="#34D399"/>
+</svg>
