@@ -8,8 +8,8 @@ import re, sys, io, os
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-JS = r'e:\Vedavathi\dashboard\app.js'
-HTML = r'e:\Vedavathi\dashboard\index.html'
+JS = 'dashboard/app.js'
+HTML = 'dashboard/index.html'
 
 with open(JS, encoding='utf-8', errors='replace') as f:
     js = f.read()
@@ -71,6 +71,7 @@ new_code = """
 
             hiddenBtns.forEach(function(btn) {
                 var item = document.createElement('button');
+                item._originalBtn = btn; // Link to original button
                 item.type = 'button';
                 item.className = 'dropdown-tab-item';
                 item.innerHTML = btn.innerHTML;
@@ -79,7 +80,22 @@ new_code = """
                 item.onmouseleave = function() { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
                 item.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    btn.click();
+
+                    // Direct click might fail if btn is display:none
+                    // Intercept and call onclick directly if possible
+                    var oc = btn.getAttribute('onclick');
+                    if (oc) {
+                        try {
+                            var fn = new Function(oc);
+                            fn.call(btn);
+                        } catch(err) {
+                            console.warn('Direct onclick failed, falling back to click()', err);
+                            btn.click();
+                        }
+                    } else {
+                        btn.click();
+                    }
+
                     dropdown.style.display = 'none';
                 });
                 dropdown.appendChild(item);
@@ -149,13 +165,6 @@ if 'FINAL MORE DROPDOWN v3' not in js:
 with open(JS, 'w', encoding='utf-8') as f:
     f.write(js)
 
-# Bump
-with open(HTML, encoding='utf-8') as f:
-    h = f.read()
-h = re.sub(r'app\.js\?v=[\d.]+', 'app.js?v=7.0.0', h)
-h = re.sub(r'index\.css\?v=[\d.]+', 'index.css?v=7.0.0', h)
-with open(HTML, 'w', encoding='utf-8') as f:
-    f.write(h)
 
 exit_code = os.system(f'node --check "{JS}" 2>&1')
 print('SYNTAX OK' if exit_code == 0 else 'SYNTAX ERROR')

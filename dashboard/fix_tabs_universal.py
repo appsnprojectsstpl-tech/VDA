@@ -8,8 +8,8 @@ import re, sys, io, os
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-JS = r'e:\Vedavathi\dashboard\app.js'
-HTML = r'e:\Vedavathi\dashboard\index.html'
+JS = 'dashboard/app.js'
+HTML = 'dashboard/index.html'
 
 with open(JS, encoding='utf-8', errors='replace') as f:
     js = f.read()
@@ -131,10 +131,13 @@ universal_fix = """
                     fn.call(originalBtn);
                 } catch(err) {
                     console.warn('More dropdown click failed:', err);
+                    originalBtn.click();
                 }
+            } else {
+                originalBtn.click();
             }
         }
-    });
+    }, true); // Use capture phase to intercept before dropdown's own handler
 
     /* 3. Add placeholder content for empty tab panes
      *    After page loads, check all panes — if any are empty, add a placeholder
@@ -171,9 +174,26 @@ universal_fix = """
             _origFinalMore();
             // After dropdown is built, link dropdown items to original buttons
             document.querySelectorAll('.hub-more-dropdown-body').forEach(function(dd) {
-                dd.querySelectorAll('.dropdown-tab-item').forEach(function(item, idx) {
-                    // Already handled in finalMoreDropdown v3
-                });
+                // Find associated nav to find original hidden buttons
+                // This is a fallback in case finalMoreDropdown v3 didn't set _originalBtn
+                var items = dd.querySelectorAll('.dropdown-tab-item');
+                if (items.length > 0 && !items[0]._originalBtn) {
+                     // Try to find the nav that created this dropdown
+                     // (This is tricky because dropdown is on body, but we can try matching text)
+                     var allNavs = document.querySelectorAll('[class*="-nav"]');
+
+                     items.forEach(function(item) {
+                         if (item._originalBtn) return;
+                         allNavs.forEach(function(nav) {
+                             if (item._originalBtn) return;
+                             nav.querySelectorAll('button').forEach(function(btn) {
+                                 if (btn.innerHTML === item.innerHTML && (btn.style.display === 'none' || getComputedStyle(btn).display === 'none')) {
+                                     item._originalBtn = btn;
+                                 }
+                             });
+                         });
+                     });
+                }
             });
         };
     }
@@ -191,13 +211,6 @@ if 'UNIVERSAL TAB FIX v7.2' not in js:
 else:
     print('Already present')
 
-# Bump
-with open(HTML, encoding='utf-8') as f:
-    h = f.read()
-h = re.sub(r'app\.js\?v=[\d.]+', 'app.js?v=7.2.0', h)
-h = re.sub(r'index\.css\?v=[\d.]+', 'index.css?v=7.2.0', h)
-with open(HTML, 'w', encoding='utf-8') as f:
-    f.write(h)
 
 exit_code = os.system(f'node --check "{JS}" 2>&1')
 print('SYNTAX OK' if exit_code == 0 else 'SYNTAX ERROR')
