@@ -9,7 +9,7 @@
 if (typeof window._sel === 'undefined') {
     window._sel = function (id) { return document.getElementById(id); };
     window._setText = function (id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
-    window._setHTML = function (id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; };
+    window._setHTML = function (id, val) { var el = document.getElementById(id); if (el) { el.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(val) : (typeof escapeHtml === 'function' ? escapeHtml(val) : val); } };
 }
 
 /* ── XSS Prevention: HTML Entity Escaping ── */
