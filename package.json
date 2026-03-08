@@ -1,0 +1,8 @@
+{
+  "name": "vedavathi",
+  "version": "1.0.0",
+  "description": "Vedavathi Project",
+  "scripts": {
+    "test:safeHTML": "node dashboard/safeHTML.test.js"
+  }
+}
