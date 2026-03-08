@@ -12411,43 +12411,8 @@ function generateInverterGrid() {
     if (el('inv-crit-count')) el('inv-crit-count').textContent = critCount;
     if (el('inv-off-count')) el('inv-off-count').textContent = offCount;
 
-    // Enable dispatch button
-    const btn = document.getElementById('inv-dispatch-btn');
-    if (btn) btn.disabled = (warnCount + critCount) === 0;
 }
 
-function dispatchCleaningRobots() {
-    const grid = document.getElementById('inv-array-grid');
-    if (!grid) return;
-
-    const btn = document.getElementById('inv-dispatch-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '🤖 Dispatching...'; }
-
-    const bad = grid.querySelectorAll('.inv-warn, .inv-crit');
-    let cleaned = 0;
-
-    bad.forEach((cell, idx) => {
-        setTimeout(() => {
-            cell.classList.remove('inv-warn', 'inv-crit');
-            cell.classList.add('inv-cleaning');
-            cleaned++;
-
-            setTimeout(() => {
-                cell.classList.remove('inv-cleaning');
-                cell.classList.add('inv-ok');
-
-                if (cleaned === bad.length) {
-                    if (btn) { btn.textContent = '✅ All Clean!'; }
-                    const el = (id) => document.getElementById(id);
-                    if (el('inv-warn-count')) el('inv-warn-count').textContent = '0';
-                    if (el('inv-crit-count')) el('inv-crit-count').textContent = '0';
-                    if (el('inv-ok-count')) el('inv-ok-count').textContent = 1000 - parseInt(el('inv-off-count')?.textContent || 0);
-                    setTimeout(() => { if (btn) { btn.textContent = '🤖 Dispatch Cleaning Robots'; btn.disabled = false; } }, 3000);
-                }
-            }, 500);
-        }, idx * 15);
-    });
-}
 
 
 // Phase 25: Notifications Dropdown
