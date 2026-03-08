@@ -6,7 +6,7 @@ module.exports = async function (request) {
         if (method === 'OPTIONS') {
             return new Response('ok', {
                 headers: {
-                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Origin': 'https://api.vedavathi.app',
                     'Access-Control-Allow-Methods': 'POST, OPTIONS',
                     'Access-Control-Allow-Headers': 'Content-Type, apikey, Authorization'
                 }
@@ -16,7 +16,7 @@ module.exports = async function (request) {
         if (method !== 'POST') {
             return new Response(JSON.stringify({ error: 'Method not allowed' }), {
                 status: 405,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'https://api.vedavathi.app' }
             });
         }
 
@@ -25,7 +25,7 @@ module.exports = async function (request) {
         if (!authHeader) {
             return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
                 status: 401,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'https://api.vedavathi.app' }
             });
         }
 
@@ -35,7 +35,7 @@ module.exports = async function (request) {
         if (!query) {
             return new Response(JSON.stringify({ error: 'Missing query parameter' }), {
                 status: 400,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'https://api.vedavathi.app' }
             });
         }
 
@@ -45,7 +45,7 @@ module.exports = async function (request) {
         if (error) {
             return new Response(JSON.stringify({ error: error.message }), {
                 status: 400,
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'https://api.vedavathi.app' }
             });
         }
 
@@ -53,14 +53,14 @@ module.exports = async function (request) {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': 'https://api.vedavathi.app'
             }
         });
 
     } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), {
             status: 500,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': 'https://api.vedavathi.app' }
         });
     }
 };
