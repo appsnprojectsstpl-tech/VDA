@@ -20860,3 +20860,8 @@ window.schemeTab = function (id, btn) {
 
 console.log('Missing Tab Functions v7.4 loaded');
 /* END MISSING TAB FUNCTIONS v7.4 */
+
+// Export for Node.js testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { safeLocalStorage: window.safeLocalStorage };
+}
