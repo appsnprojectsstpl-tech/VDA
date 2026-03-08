@@ -12274,12 +12274,7 @@ window.dairyTab = function (id, btn) {
 }
 
 window.solarTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id) || document.getElementById('slr-' + id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', [id, 'slr-' + id]);
 };
 
 window.solarSubTab = function (id, btn, containerId) {
@@ -14888,12 +14883,7 @@ function gridTab(id, btn) {
     if (btn) btn.classList.add('active');
 }
 function windTab(id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wnd-' + id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', 'wnd-' + id);
 }
 
 
@@ -18903,12 +18893,7 @@ window.logoutUser = _SESSION.logout.bind(_SESSION);
 
 /* Logistics */
 window.switchLogisticsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 async function saveLogisticsVehicle() {
@@ -18945,12 +18930,7 @@ async function saveLogisticsFuel() {
 
 /* Water */
 window.switchWaterTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 async function saveBorewellLog() {
@@ -18974,12 +18954,7 @@ async function saveReservoirLog() {
 
 /* Trust */
 window.switchTrustTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 async function saveTrustDonation() {
@@ -19002,6 +18977,24 @@ async function saveTrustBeneficiary() {
     });
     alert('Beneficiary aid logged!');
 }
+
+
+window._genericTabSwitcher = function(id, btn, paneClass, btnClass, targetIds) {
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.' + paneClass).forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.' + btnClass).forEach(function (e) { e.classList.remove('active'); });
+    var target = null;
+    if (Array.isArray(targetIds)) {
+        for (var i = 0; i < targetIds.length; i++) {
+            target = document.getElementById(targetIds[i]);
+            if (target) break;
+        }
+    } else {
+        target = document.getElementById(targetIds || id);
+    }
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
+};
 
 /* ── Universal Tab Switcher (works inside #page-container) ── */
 function _universalTab(id, btn) {
@@ -19181,75 +19174,40 @@ document.addEventListener('DOMSubtreeModified', () => {
 });
 
 window.switchHydrogenTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.vet-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'vet-pane', 'dairy-tab-btn', id);
 };
 
 
 window.switchHydroTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.vet-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'vet-pane', 'dairy-tab-btn', id);
 };
 
 
 // VPMS Tab Switching Logic
 window.switchVpmsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 // Paint Module Tab Switcher
 window.switchPaintTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 // Carbon Hub Tab Switcher
 window.switchCarbonTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 
 
 // CRM Tab Switcher
 window.crmTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('cm-' + id) || document.getElementById('crm-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['cm-' + id, 'crm-' + id, id]);
 };
 
 // AgriTour Tab Switcher
 window.switchAgriTourTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
 };
 
 /* --------------------------------------------------------------------------
@@ -19262,78 +19220,43 @@ window.crmTab = crmTab;
 
 // HRM Tab Switcher
 window.hrmTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('hrm-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['hrm-' + id, id]);
 };
 window.hrmTab = hrmTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('inv-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('fin-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('dms-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('bi-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wf-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
 };
 window.ticketTab = ticketTab;
 
@@ -19343,78 +19266,43 @@ window.ticketTab = ticketTab;
 
 // HRM Tab Switcher
 window.hrmTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('hrm-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['hrm-' + id, id]);
 };
 window.hrmTab = hrmTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('inv-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('fin-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('dms-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('bi-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wf-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
 };
 window.ticketTab = ticketTab;
 
@@ -19423,67 +19311,37 @@ window.ticketTab = ticketTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('inv-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('fin-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('dms-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('bi-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wf-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
 };
 window.ticketTab = ticketTab;
 
@@ -19491,79 +19349,44 @@ window.ticketTab = ticketTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('fin-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('dms-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('bi-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wf-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
 };
 window.ticketTab = ticketTab;
 
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('wf-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
-    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
+    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
 };
 window.ticketTab = ticketTab;
 
