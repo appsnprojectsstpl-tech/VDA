@@ -20398,6 +20398,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             hiddenBtns.forEach(function (btn) {
                 var item = document.createElement('button');
+                item._originalBtn = btn; // Link to original button
                 item.type = 'button';
                 item.className = 'dropdown-tab-item';
                 item.innerHTML = btn.innerHTML;
@@ -20406,7 +20407,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 item.onmouseleave = function () { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
                 item.addEventListener('click', function (e) {
                     e.stopPropagation();
-                    btn.click();
+
+                    // Direct click might fail if btn is display:none
+                    // Intercept and call onclick directly if possible
+                    var oc = btn.getAttribute('onclick');
+                    if (oc) {
+                        try {
+                            var fn = new Function(oc);
+                            fn.call(btn);
+                        } catch (err) {
+                            console.warn('Direct onclick failed, falling back to click()', err);
+                            btn.click();
+                        }
+                    } else {
+                        btn.click();
+                    }
+
                     dropdown.style.display = 'none';
                 });
                 dropdown.appendChild(item);
