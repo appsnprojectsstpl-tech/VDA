@@ -9,7 +9,7 @@
 if (typeof window._sel === 'undefined') {
     window._sel = function (id) { return document.getElementById(id); };
     window._setText = function (id, val) { var el = document.getElementById(id); if (el) el.innerText = val; };
-    window._setHTML = function (id, val) { var el = document.getElementById(id); if (el) { el.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(val) : (typeof escapeHtml === 'function' ? escapeHtml(val) : val); } };
+    window._setHTML = function (id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; };
 }
 
 /* ── XSS Prevention: HTML Entity Escaping ── */
@@ -25,6 +25,56 @@ function escapeHtml(str) {
         .replace(/'/g, '&#x27;')
         .replace(/\//g, '&#x2F;');
 }
+
+/* ============================================================
+   PHASE 2 — MODAL FORM SYSTEM & CRUD WIRING
+   ============================================================ */
+
+/* 2A. Modal Helpers */
+window.openModal = function(id) {
+    var m = document.getElementById(id);
+    if(m) m.style.display = 'flex';
+};
+
+window.closeModal = function(id) {
+    var m = document.getElementById(id);
+    if(m) m.style.display = 'none';
+};
+
+/* 2B. Universal Form Submitter */
+window.insforgeSubmit = async function(tableName, formId, statusId, callback) {
+    var form = document.getElementById(formId);
+    if(!form) return;
+    
+    // Extract form data
+    var data = {};
+    var formData = new FormData(form);
+    formData.forEach(function(value, key) {
+        data[key] = value;
+    });
+    
+    // Auto-fill common audit fields if empty
+    if(data.created_at === '') delete data.created_at;
+    
+    var ok = await window.insforge.insert(tableName, data);
+    var statusEl = document.getElementById(statusId);
+    if(statusEl) {
+        statusEl.textContent = ok ? 'Saved successfully!' : 'Save failed';
+        statusEl.className = ok ? 'status-success' : 'status-error';
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
+    }
+    
+    if(ok) {
+        form.reset();
+        if(typeof callback === 'function') callback(data);
+    }
+};
+
+/* 2C. Inline Editing Pattern */
+window.editRow = async function(tableName, rowId, newData, callback) {
+    var ok = await window.insforge.update(tableName, { id: rowId }, newData);
+    if(ok && typeof callback === 'function') callback();
+};
 
 /* ── Safe localStorage Wrapper ── */
 // Handles localStorage errors (quota exceeded, disabled, incognito mode)
@@ -367,6 +417,175 @@ window.LoadingIndicator = (function () {
         }
     };
 })();
+
+/* ── ModalManager — Reusable Modal Form System ── */
+window.ModalManager = (function () {
+    'use strict';
+
+    let overlay = null;
+
+    function ensureOverlay() {
+        if (overlay && document.body.contains(overlay)) return overlay;
+        overlay = document.createElement('div');
+        overlay.id = 'modal-manager-overlay';
+        overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;align-items:center;justify-content:center;';
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    function buildField(f) {
+        var id = 'modal-field-' + f.name;
+        var label = '<label for="' + id + '" style="display:block;margin-bottom:4px;font-weight:500;color:var(--text-primary,#c8d6e5);">' + escapeHtml(f.label) + (f.required ? ' *' : '') + '</label>';
+        var input = '';
+        var style = 'width:100%;padding:10px;background:var(--panel-bg,#0d1b2a);color:var(--text-primary,#c8d6e5);border:1px solid rgba(200,214,229,0.15);border-radius:6px;font-size:0.9rem;';
+        if (f.type === 'select') {
+            var opts = (f.options || []).map(function (o) {
+                var val = typeof o === 'string' ? o : o.value;
+                var lbl = typeof o === 'string' ? o : o.label;
+                return '<option value="' + escapeHtml(val) + '">' + escapeHtml(lbl) + '</option>';
+            }).join('');
+            input = '<select id="' + id + '" name="' + f.name + '" style="' + style + '"' + (f.required ? ' required' : '') + '><option value="">-- Select --</option>' + opts + '</select>';
+        } else if (f.type === 'textarea') {
+            input = '<textarea id="' + id + '" name="' + f.name + '" rows="3" style="' + style + 'resize:vertical;" placeholder="' + escapeHtml(f.placeholder || '') + '"' + (f.required ? ' required' : '') + '></textarea>';
+        } else {
+            input = '<input id="' + id + '" name="' + f.name + '" type="' + (f.type || 'text') + '" style="' + style + '" placeholder="' + escapeHtml(f.placeholder || '') + '"' + (f.required ? ' required' : '') + (f.step ? ' step="' + f.step + '"' : '') + '>';
+        }
+        return '<div style="margin-bottom:14px;">' + label + input + '</div>';
+    }
+
+    function open(config) {
+        var ov = ensureOverlay();
+        var fieldsHtml = (config.fields || []).map(buildField).join('');
+        ov.innerHTML = '<div style="background:var(--card-bg,#0f2744);border:1px solid rgba(200,214,229,0.12);border-radius:12px;padding:28px;width:90%;max-width:520px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">' +
+                '<div style="font-size:1.15rem;font-weight:600;color:var(--text-primary,#c8d6e5);">' + escapeHtml(config.title || 'Form') + '</div>' +
+                '<button type="button" onclick="ModalManager.close()" style="background:none;border:none;color:var(--text-muted,#8899aa);font-size:1.4rem;cursor:pointer;padding:4px 8px;">&times;</button>' +
+            '</div>' +
+            '<form id="modal-manager-form">' + fieldsHtml +
+                '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
+                    '<button type="button" onclick="ModalManager.close()" style="padding:10px 20px;background:var(--panel-bg,#0d1b2a);color:var(--text-primary,#c8d6e5);border:1px solid rgba(200,214,229,0.15);border-radius:6px;cursor:pointer;">Cancel</button>' +
+                    '<button type="submit" style="padding:10px 24px;background:var(--accent-primary,#00b0ff);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">' + escapeHtml(config.submitLabel || 'Save') + '</button>' +
+                '</div>' +
+            '</form>' +
+        '</div>';
+
+        var form = ov.querySelector('#modal-manager-form');
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var data = {};
+            (config.fields || []).forEach(function (f) {
+                var el = document.getElementById('modal-field-' + f.name);
+                if (el) data[f.name] = f.type === 'number' ? (el.value ? parseFloat(el.value) : null) : el.value;
+            });
+            if (typeof config.onSubmit === 'function') config.onSubmit(data);
+        });
+
+        ov.style.display = 'flex';
+        var first = ov.querySelector('input, select, textarea');
+        if (first) setTimeout(function () { first.focus(); }, 100);
+    }
+
+    function close() {
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    return { open: open, close: close };
+})();
+
+/* ── ChartHelper — Chart.js Wrapper ── */
+window.ChartHelper = (function () {
+    'use strict';
+    var instances = {};
+
+    function create(canvasId, type, data, options) {
+        if (typeof Chart === 'undefined') { console.warn('Chart.js not loaded'); return null; }
+        if (instances[canvasId]) { instances[canvasId].destroy(); delete instances[canvasId]; }
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        var defaults = {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { labels: { color: 'rgba(200,214,229,0.7)', font: { size: 11 } } } },
+            scales: {}
+        };
+        if (type === 'bar' || type === 'line') {
+            defaults.scales = {
+                x: { ticks: { color: 'rgba(200,214,229,0.5)' }, grid: { color: 'rgba(200,214,229,0.05)' } },
+                y: { ticks: { color: 'rgba(200,214,229,0.5)' }, grid: { color: 'rgba(200,214,229,0.05)' } }
+            };
+        }
+        var merged = Object.assign({}, defaults, options || {});
+        instances[canvasId] = new Chart(canvas.getContext('2d'), { type: type, data: data, options: merged });
+        return instances[canvasId];
+    }
+
+    function destroy(canvasId) {
+        if (instances[canvasId]) { instances[canvasId].destroy(); delete instances[canvasId]; }
+    }
+
+    return { create: create, destroy: destroy };
+})();
+
+/* ── TableSearch — Generic table row filter ── */
+window.TableSearch = function (inputEl, tableEl) {
+    if (!inputEl || !tableEl) return;
+    inputEl.addEventListener('input', function () {
+        var q = this.value.toLowerCase();
+        var rows = tableEl.querySelectorAll('tbody tr, tr:not(:first-child)');
+        rows.forEach(function (r) {
+            if (r.querySelector('th')) return; // skip header rows
+            r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+};
+
+/* ── ExportHelper — CSV/PDF export utilities ── */
+window.ExportHelper = {
+    toCSV: function (tableEl, filename) {
+        if (!tableEl) return;
+        var rows = [];
+        tableEl.querySelectorAll('tr').forEach(function (tr) {
+            var cols = [];
+            tr.querySelectorAll('th, td').forEach(function (cell) { cols.push('"' + cell.textContent.replace(/"/g, '""').trim() + '"'); });
+            rows.push(cols.join(','));
+        });
+        var csv = rows.join('\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = (filename || 'export') + '.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+        if (typeof window.showToast === 'function') window.showToast('Exported to ' + link.download, 'success');
+    },
+
+    toPDF: function (tableEl, title, filename) {
+        if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+            window.showToast('PDF library loading...', 'info');
+            return;
+        }
+        var jsPDF = (window.jspdf && window.jspdf.jsPDF) || jspdf.jsPDF;
+        var doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text(title || 'Report', 14, 20);
+        doc.setFontSize(10);
+        var y = 35;
+        if (tableEl) {
+            tableEl.querySelectorAll('tr').forEach(function (tr, ri) {
+                var cols = [];
+                tr.querySelectorAll('th, td').forEach(function (cell) { cols.push(cell.textContent.trim()); });
+                var line = cols.join('  |  ');
+                if (ri === 0) { doc.setFont(undefined, 'bold'); } else { doc.setFont(undefined, 'normal'); }
+                doc.text(line.substring(0, 180), 14, y);
+                y += 7;
+                if (y > 280) { doc.addPage(); y = 20; }
+            });
+        }
+        doc.save((filename || 'report') + '.pdf');
+        if (typeof window.showToast === 'function') window.showToast('PDF exported', 'success');
+    }
+};
 
 /* ── Screen Reader Announcer ── */
 // Announces messages to screen readers via ARIA live region
@@ -739,7 +958,7 @@ const pages = {
             </div>
             
             <div class="chart-grid" style="margin-top:20px;">
-                <div class="card" style="grid-column: span 2; overflow-x: auto;">
+                <div class="card" style="grid-column: span 2; overflow-x:hidden;">
                     <h4>Accommodation Availability Gantt (Next 7 Days)</h4>
                     <table class="data-table" style="min-width: 800px; text-align:center;">
                         <tr>
@@ -1574,7 +1793,7 @@ const pages = {
 
                         <div style="background:#f5f5f5; padding:15px; border-radius:12px;">
                             <h4 style="margin:0 0 10px 0; color:#333;">🌿 Book Activities</h4>
-                            <div style="display:flex; gap:10px; overflow-x:auto; padding-bottom:5px;">
+                            <div style="display:flex; gap:10px; overflow-x:hidden; padding-bottom:5px;">
                                 <div style="min-width:120px; background:white; padding:10px; border-radius:8px; text-align:center;">
                                     <div style="font-size:2rem;">🐄</div><div style="font-size:0.8rem; font-weight:bold;">Farm Dairy Tour</div><div style="font-size:0.7rem; color:green;">Free</div>
                                 </div>
@@ -2473,7 +2692,7 @@ const pages = {
    </div>
    <div class="dairy-nav" style="margin-bottom: 20px;">
 
-            <div class="dairy-nav" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px;">
+            <div class="dairy-nav" style="display: flex; gap: 10px;  padding-bottom: 10px;">
                 <button type="button"  class="dairy-tab-btn active" onclick="switchPaintTab(\'paint-dashboard\', this)">📊 Dashboard</button>
                 <button type="button"  class="dairy-tab-btn" onclick="switchPaintTab(\'paint-formulation\', this)">🧪 Formulation</button>
                 <button type="button"  class="dairy-tab-btn" onclick="switchPaintTab(\'paint-production\', this)">🏭 Production</button>
@@ -3973,7 +4192,7 @@ const pages = {
     }
     .sg-header-title h1 { font-family: var(--sg-font-head); color: var(--sg-accent-cyan); text-shadow: 0 0 10px rgba(0, 255, 224, 0.3); margin: 0 0 5px 0; font-size: 2rem; text-transform: uppercase;}
     .sg-header-title p { font-family: var(--sg-font-num); color: var(--sg-text-muted); font-size: 0.9rem; margin:0;}
-    .sg-alert-strip { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 5px; }
+    .sg-alert-strip { display: flex; gap: 15px; overflow-x:hidden; padding-bottom: 5px; }
     .sg-alert-card { background: var(--sg-bg-panel); border: 1px solid var(--sg-border-color); border-left-width: 4px; padding: 12px 20px; border-radius: 4px; min-width: max-content; font-size: 0.95rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     .sg-alert-green { border-left-color: var(--sg-accent-green); }
     .sg-alert-yellow { border-left-color: var(--sg-accent-yellow); }
@@ -4144,7 +4363,7 @@ const pages = {
 
     <div class="sg-chart-panel">
         <div style="margin-bottom:5px"><div class="sg-chart-title">System Event Log</div></div>
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:hidden;">
             <table class="sg-event-table">
                 <thead><tr><th>Timestamp</th><th>Zone</th><th>Event</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody><tr class="empty-state"><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">No data available</td></tr>
@@ -11671,6 +11890,186 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+
+
+// --- CARBON TRADING SIMULATION LOGIC ---
+
+function initCarbonTerminal() {
+    // Clear old interval if exists
+    if (window.carbonInterval) clearInterval(window.carbonInterval);
+
+    // 1. Setup Chart
+    const ctx = document.getElementById('carbonMarketChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', 'Now'],
+                datasets: [{
+                    label: 'Capture Rate (tons/hr)',
+                    data: [14.2, 14.5, 15.1, 15.3, 15.2, 15.1, 15.4],
+                    borderColor: '#00e676',
+                    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { border: { dash: [4, 4] }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { border: { display: false }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. High-Speed Ticker Simulation
+    let captureBase = 4.210;
+    let totalCapture = 50420.0;
+    let revBase = 627729;
+
+    window.carbonInterval = setInterval(() => {
+        // Live rate fluctuation
+        captureBase = captureBase + (Math.random() * 0.02 - 0.01);
+        const tickerEl = document.getElementById('capture-ticker');
+        if (!tickerEl) { clearInterval(carbonInterval); return; } // Page changed
+
+        tickerEl.innerHTML = `<span>${escapeHtml(captureBase.toFixed(3))}</span> <span style="font-size:1rem; color:#a0aec0; text-shadow:none;">kg/sec</span>`;
+        if (Math.random() > 0.7) {
+            tickerEl.querySelector('span').classList.remove('flash-up');
+            void tickerEl.querySelector('span').offsetWidth; // Trigger reflow
+            tickerEl.querySelector('span').classList.add('flash-up');
+        }
+
+        // Slow updates for total and revenue
+        totalCapture += (captureBase / 1000); // add kg as tons
+        var _el_c_total = document.getElementById('c-total'); if (_el_c_total) _el_c_total.innerText = Math.floor(totalCapture).toLocaleString();
+
+        revBase += ((captureBase / 1000) * 12.45);
+        var _el_c_rev = document.getElementById('c-rev'); if (_el_c_rev) _el_c_rev.innerText = "$" + Math.floor(revBase).toLocaleString();
+
+        // Random Order Book Injection
+        if (Math.random() > 0.9) {
+            injectOrder();
+        }
+
+    }, 300); // Super fast 300ms updates
+}
+
+const buyers = ["Aqua Corp INC", "EcoFunds LLC", "Nordic Steel", "Japan Airlines", "Global ShipTech"];
+function injectOrder() {
+    const obBody = document.getElementById('order-book-body');
+    if (!obBody) return;
+
+    const buyer = buyers[Math.floor(Math.random() * buyers.length)];
+    const vol = Math.floor(Math.random() * 2000) + 100;
+    const price = (12.45 + (Math.random() * 0.1 - 0.05)).toFixed(2);
+
+    const row = document.createElement('div');
+    row.className = 'ob-row new-order';
+    row.innerHTML = `<div class="ob-buyer" > ${escapeHtml(buyer)}</div><div class="ob-vol">${vol.toLocaleString()}</div><div class="ob-price">$${escapeHtml(price)}</div>`;
+
+    obBody.insertBefore(row, obBody.firstChild);
+
+    // Keep only 6 rows
+    if (obBody.children.length > 6) {
+        obBody.removeChild(obBody.lastChild);
+    }
+}
+
+
+
+// --- HYDROPOWER SIMULATION LOGIC ---
+let turbineRot = 0;
+let hydroInterval;
+
+function initHydroSim() {
+    if (hydroInterval) clearInterval(hydroInterval);
+    updateHydroSimulation(document.getElementById('demandSlider')?.value || 0);
+
+    // Animation Loop
+    hydroInterval = setInterval(() => {
+        const slider = document.getElementById('demandSlider');
+        if (!slider) { clearInterval(hydroInterval); return; }
+
+        const demand = parseInt(slider.value);
+        const turbine = document.getElementById('turbine');
+
+        if (demand > 0) {
+            // Spin turbine based on demand speed
+            turbineRot += (demand / 5);
+            turbine.style.transform = `rotate(${turbineRot}deg)`;
+        }
+    }, 50);
+}
+
+function updateHydroSimulation(val) {
+    const demand = parseInt(val);
+
+    // UI Elements
+    const readout = document.getElementById('demand-readout');
+    const gen = document.getElementById('h-gen');
+    const waterFlow = document.getElementById('water-flow');
+    const upperCap = document.getElementById('h-reserve');
+    const waterUpper = document.getElementById('water-upper');
+    const waterLower = document.getElementById('water-lower');
+
+    const pumpCard = document.getElementById('h-pump-card');
+    const returnPath = document.getElementById('return-path');
+
+    if (demand === 0) {
+        // PUMPING MODE (Solar active, generating 0)
+        readout.innerText = "Low (Pumping)";
+        readout.style.color = "#00b0ff";
+        gen.innerText = "0.0";
+        waterFlow.style.height = "0%";
+
+        // Return active
+        pumpCard.style.opacity = "1";
+        returnPath.classList.add('active');
+
+        // Refill upper tank slowly visually
+        waterUpper.style.height = "85%";
+        waterLower.style.height = "15%";
+        upperCap.innerText = "85%";
+
+    } else {
+        // GENERATING MODE
+        if (demand < 50) {
+            readout.innerText = "Medium Surge";
+            readout.style.color = "#fbbf24";
+        } else {
+            readout.innerText = "CRITICAL SURGE";
+            readout.style.color = "#ff1744";
+        }
+
+        // Stop pumps
+        pumpCard.style.opacity = "0.5";
+        returnPath.classList.remove('active');
+
+        // Calculate Generation (up to ~18 MW)
+        const genMW = (demand / 100) * 18.4;
+        gen.innerText = genMW.toFixed(1);
+
+        // Show water flowing down pipe
+        waterFlow.style.height = "100%";
+
+        // Drain upper tank, fill lower tank proportionally
+        const drainAmount = 85 - (demand * 0.4); // Drain down to max 45% remaining
+        const fillAmount = 15 + (demand * 0.4);
+
+        waterUpper.style.height = `${drainAmount}% `;
+        waterLower.style.height = `${fillAmount}% `;
+        upperCap.innerText = `${Math.round(drainAmount)}% `;
+    }
+}
+
+
+
 // --- VERMICOMPOST IOT LOGIC ---
 let vermiInterval;
 function initVermiGrid() {
@@ -11858,7 +12257,7 @@ function switchCowTab(tab) {
 
     // Pane Toggle
     document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-    document.getElementById(`cow - tab - ${tab} `).classList.add('active');
+    document.getElementById(`cow-tab-${tab}`).classList.add('active');
 
     // If micro, generate DB
     if (tab === 'micro') {
@@ -11940,7 +12339,7 @@ function switchVetTab(tab) {
 
     // Pane Toggle
     document.querySelectorAll('[id^=vet-tab-]').forEach(pane => pane.classList.remove('active'));
-    document.getElementById(`vet - tab - ${tab} `).classList.add('active');
+    document.getElementById(`vet-tab-${tab}`).classList.add('active');
 
     if (tab === 'er') {
         generateERBoard();
@@ -12000,7 +12399,7 @@ function switchSolarTab(tab) {
     event.target.classList.add('active');
 
     document.querySelectorAll('[id^=solar-tab-]').forEach(pane => pane.classList.remove('active'));
-    document.getElementById(`solar - tab - ${tab} `).classList.add('active');
+    document.getElementById(`solar-tab-${tab}`).classList.add('active');
 
     if (tab === 'micro') {
         generateSolarGrid();
@@ -12055,7 +12454,8 @@ function dispatchCleaningDrones() {
             // cleanup animation class and set optimal
             setTimeout(() => {
                 cell.classList.remove('inv-cleaning');
-                const currCount = parseInt(document.getElementById('solar-dust-count').innerText);
+                const currCountEl = document.getElementById('solar-dust-count');
+                const currCount = currCountEl ? parseInt(currCountEl.innerText) || 0 : 0;
                 var _el_solar_dust_count = document.getElementById('solar-dust-count'); if (_el_solar_dust_count) _el_solar_dust_count.innerText = Math.max(0, currCount - 1);
 
                 if (index === warnCells.length - 1) {
@@ -12094,7 +12494,13 @@ window.dairyTab = function (id, btn) {
 }
 
 window.solarTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', [id, 'slr-' + id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); e.style.display = 'none'; });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    // Try multiple ID patterns: 'sol-' (solar), 'slr-' (legacy), or direct
+    var target = document.getElementById(id) || document.getElementById('sol-' + id) || document.getElementById('slr-' + id);
+    if (target) { target.classList.add('active'); target.style.display = 'block'; }
+    if (btn) btn.classList.add('active');
 };
 
 window.solarSubTab = function (id, btn, containerId) {
@@ -12324,8 +12730,43 @@ function generateInverterGrid() {
     if (el('inv-crit-count')) el('inv-crit-count').textContent = critCount;
     if (el('inv-off-count')) el('inv-off-count').textContent = offCount;
 
+    // Enable dispatch button
+    const btn = document.getElementById('inv-dispatch-btn');
+    if (btn) btn.disabled = (warnCount + critCount) === 0;
 }
 
+function dispatchCleaningRobots() {
+    const grid = document.getElementById('inv-array-grid');
+    if (!grid) return;
+
+    const btn = document.getElementById('inv-dispatch-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '🤖 Dispatching...'; }
+
+    const bad = grid.querySelectorAll('.inv-warn, .inv-crit');
+    let cleaned = 0;
+
+    bad.forEach((cell, idx) => {
+        setTimeout(() => {
+            cell.classList.remove('inv-warn', 'inv-crit');
+            cell.classList.add('inv-cleaning');
+            cleaned++;
+
+            setTimeout(() => {
+                cell.classList.remove('inv-cleaning');
+                cell.classList.add('inv-ok');
+
+                if (cleaned === bad.length) {
+                    if (btn) { btn.textContent = '✅ All Clean!'; }
+                    const el = (id) => document.getElementById(id);
+                    if (el('inv-warn-count')) el('inv-warn-count').textContent = '0';
+                    if (el('inv-crit-count')) el('inv-crit-count').textContent = '0';
+                    if (el('inv-ok-count')) el('inv-ok-count').textContent = 1000 - parseInt(el('inv-off-count')?.textContent || 0);
+                    setTimeout(() => { if (btn) { btn.textContent = '🤖 Dispatch Cleaning Robots'; btn.disabled = false; } }, 3000);
+                }
+            }, 500);
+        }, idx * 15);
+    });
+}
 
 
 // Phase 25: Notifications Dropdown
@@ -14668,7 +15109,13 @@ function gridTab(id, btn) {
     if (btn) btn.classList.add('active');
 }
 function windTab(id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', 'wnd-' + id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); e.style.display = 'none'; });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    // Try multiple ID patterns: 'wnd-' (wind), 'wnd-' prefix
+    var target = document.getElementById('wnd-' + id);
+    if (target) { target.classList.add('active'); target.style.display = 'block'; }
+    if (btn) btn.classList.add('active');
 }
 
 
@@ -14687,10 +15134,12 @@ window.windSubTab = function (subId, btn, paneId) {
 };
 
 function hydrogenTab(id, btn) {
-    document.querySelectorAll('#page-container .vet-pane[id^="h2-"]').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('#page-container .vet-tab-btn').forEach(b => b.classList.remove('active'));
-    const el = document.getElementById('h2-' + id);
-    if (el) el.classList.add('active');
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.vet-pane').forEach(function (e) { e.classList.remove('active'); e.style.display = 'none'; });
+    container.querySelectorAll('.vet-tab-btn, .dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    // Try multiple ID patterns: 'gh-', 'h2-'
+    var target = document.getElementById('gh-' + id) || document.getElementById('h2-' + id);
+    if (target) { target.classList.add('active'); target.style.display = 'block'; }
     if (btn) btn.classList.add('active');
 }
 function hydroTab(id, btn) {
@@ -16017,6 +16466,34 @@ async function loadBuyerTable() {
             (rows.map(function (r) { return '<tr><td>' + r.company + '</td><td>' + r.product + '</td><td>' + r.contract_volume + '</td><td>₹' + r.agreed_rate + '</td><td>' + r.tenure + '</td><td><span class="pill ' + (sc[r.status] || 'pill-blue') + '">' + r.status + '</span></td></tr>'; }).join('') || '<tr><td colspan="6" style="text-align:center">No buyers registered</td></tr>');
     } catch (e) { console.error('Operation failed:', e); }
 }
+
+/* ============================================================
+   PHASE 1 — ERP & TIER 3 TAB SWITCHERS
+   ============================================================ */
+(function() {
+    function createTabSwitcher() {
+        return function(paneId, btn) {
+            if (!btn) return;
+            var container = btn.closest('.page-content') || document;
+            container.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+            container.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+            btn.classList.add('active');
+            var pane = container.querySelector('#' + paneId);
+            if (pane) pane.classList.add('active');
+        };
+    }
+
+    var missingTabs = [
+        'crmTab', 'hrmTab', 'invTab', 'finTab', 'dmsTab', 'wkfTab', 'tktTab', 'biTab',
+        'bookingTab', 'fpTab', 'fsTab', 'lmsTab', 'surveyTab', 'schemeTab'
+    ];
+    
+    missingTabs.forEach(function(fnName) {
+        if (typeof window[fnName] !== 'function') {
+            window[fnName] = createTabSwitcher();
+        }
+    });
+})();
 
 /* ── LIVE FINANCE DASHBOARD ── */
 async function loadLiveFinanceDash() {
@@ -18678,7 +19155,12 @@ window.logoutUser = _SESSION.logout.bind(_SESSION);
 
 /* Logistics */
 window.switchLogisticsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 async function saveLogisticsVehicle() {
@@ -18715,7 +19197,12 @@ async function saveLogisticsFuel() {
 
 /* Water */
 window.switchWaterTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 async function saveBorewellLog() {
@@ -18739,7 +19226,12 @@ async function saveReservoirLog() {
 
 /* Trust */
 window.switchTrustTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 async function saveTrustDonation() {
@@ -18763,24 +19255,6 @@ async function saveTrustBeneficiary() {
     alert('Beneficiary aid logged!');
 }
 
-
-window._genericTabSwitcher = function(id, btn, paneClass, btnClass, targetIds) {
-    var container = document.getElementById('page-container') || document.body;
-    container.querySelectorAll('.' + paneClass).forEach(function (e) { e.classList.remove('active'); });
-    container.querySelectorAll('.' + btnClass).forEach(function (e) { e.classList.remove('active'); });
-    var target = null;
-    if (Array.isArray(targetIds)) {
-        for (var i = 0; i < targetIds.length; i++) {
-            target = document.getElementById(targetIds[i]);
-            if (target) break;
-        }
-    } else {
-        target = document.getElementById(targetIds || id);
-    }
-    if (target) target.classList.add('active');
-    if (btn) btn.classList.add('active');
-};
-
 /* ── Universal Tab Switcher (works inside #page-container) ── */
 function _universalTab(id, btn) {
     // Deactivate all sibling dairy-panes within the same container
@@ -18793,7 +19267,19 @@ function _universalTab(id, btn) {
         if (nav) nav.querySelectorAll('.dairy-tab-btn').forEach(function (b) { b.classList.remove('active'); });
         btn.classList.add('active');
     }
+    // Try multiple ID patterns: direct, 'd-', 'sol-', 'wnd-', 'bg-', etc.
     var target = document.getElementById(id);
+    if (!target) target = document.getElementById('d-' + id);
+    if (!target) target = document.getElementById('sol-' + id);
+    if (!target) target = document.getElementById('wnd-' + id);
+    if (!target) target = document.getElementById('bg-' + id);
+    if (!target) target = document.getElementById('gh-' + id);
+    if (!target) target = document.getElementById('hyd-' + id);
+    if (!target) target = document.getElementById('kems-' + id);
+    if (!target) target = document.getElementById('vpms-' + id);
+    if (!target) target = document.getElementById('tree-' + id);
+    if (!target) target = document.getElementById('aq-' + id);
+    if (!target) target = document.getElementById('vet-' + id);
     if (target) { target.style.display = 'block'; target.classList.add('active'); }
 }
 
@@ -18959,40 +19445,75 @@ document.addEventListener('DOMSubtreeModified', () => {
 });
 
 window.switchHydrogenTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'vet-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.vet-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 
 window.switchHydroTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'vet-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.vet-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 
 // VPMS Tab Switching Logic
 window.switchVpmsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 // Paint Module Tab Switcher
 window.switchPaintTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 // Carbon Hub Tab Switcher
 window.switchCarbonTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 
 
 // CRM Tab Switcher
 window.crmTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['cm-' + id, 'crm-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('cm-' + id) || document.getElementById('crm-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 // AgriTour Tab Switcher
 window.switchAgriTourTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'dairy-pane', 'dairy-tab-btn', id);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.dairy-pane').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.dairy-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 
 /* --------------------------------------------------------------------------
@@ -19005,43 +19526,78 @@ window.crmTab = crmTab;
 
 // HRM Tab Switcher
 window.hrmTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['hrm-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('hrm-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.hrmTab = hrmTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('inv-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('fin-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('dms-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('bi-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('wf-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.ticketTab = ticketTab;
 
@@ -19051,43 +19607,78 @@ window.ticketTab = ticketTab;
 
 // HRM Tab Switcher
 window.hrmTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['hrm-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('hrm-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.hrmTab = hrmTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('inv-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('fin-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('dms-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('bi-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('wf-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.ticketTab = ticketTab;
 
@@ -19096,37 +19687,67 @@ window.ticketTab = ticketTab;
 
 // Inventory Tab Switcher
 window.invTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['inv-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('inv-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.invTab = invTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('fin-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('dms-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('bi-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('wf-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.ticketTab = ticketTab;
 
@@ -19134,44 +19755,79 @@ window.ticketTab = ticketTab;
 
 // Finance Tab Switcher
 window.finTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['fin-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('fin-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.finTab = finTab;
 
 // DMS Tab Switcher
 window.dmsTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['dms-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('dms-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.dmsTab = dmsTab;
 
 // BI Tab Switcher
 window.biTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['bi-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('bi-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.biTab = biTab;
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('wf-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.ticketTab = ticketTab;
 
 
 // Workflow Tab Switcher
 window.wfTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['wf-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('wf-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.wfTab = wfTab;
 
 // Ticketing Tab Switcher
 window.ticketTab = function (id, btn) {
-    window._genericTabSwitcher(id, btn, 'crm-pn', 'crm-tab-btn', ['ticket-' + id, id]);
+    var container = document.getElementById('page-container') || document.body;
+    container.querySelectorAll('.crm-pn').forEach(function (e) { e.classList.remove('active'); });
+    container.querySelectorAll('.crm-tab-btn').forEach(function (e) { e.classList.remove('active'); });
+    const target = document.getElementById('ticket-' + id) || document.getElementById(id);
+    if (target) target.classList.add('active');
+    if (btn) btn.classList.add('active');
 };
 window.ticketTab = ticketTab;
 
@@ -19843,263 +20499,135 @@ document.addEventListener('DOMContentLoaded', function () {
    SMART MORE DROPDOWN v2 — Always visible, dynamic tab count
    ============================================================ */
 (function () {
-    /* DISABLED */ function _old_smartMoreDropdown() {
-        var navSelectors = '.dairy-nav,.vet-nav,.en-nav,.crm-nav,.vermi-nav,.tree-nav,.aqua-nav,.paint-nav,.biogas-nav,.wind-nav,.solar-nav,.carbon-nav,.fin-nav';
-        document.querySelectorAll(navSelectors).forEach(function (nav) {
-            if (nav.dataset.smartMore === '1') return;
 
-            var allBtns = Array.from(nav.querySelectorAll('button:not(.hub-more-btn)'));
-            if (allBtns.length <= 5) return;
+    /* END SMART MORE DROPDOWN v2 */
 
-            nav.dataset.smartMore = '1';
 
-            // Remove any OLD More containers first
-            nav.querySelectorAll('.hub-more-container').forEach(function (c) { c.remove(); });
+    /* ============================================================
+       FINAL MORE DROPDOWN v3 — Dropdown on document.body, tabs hidden
+       ============================================================ */
+    (function () {
+        function finalMoreDropdown() {
+            var navSelectors = '.dairy-nav,.vet-nav,.en-nav,.crm-nav,.vermi-nav,.tree-nav,.aqua-nav,.paint-nav,.biogas-nav,.wind-nav,.solar-nav,.carbon-nav,.fin-nav';
+            document.querySelectorAll(navSelectors).forEach(function (nav) {
+                if (nav.dataset.finalMore === 'done') return;
 
-            // Calculate how many tabs can fit
-            var navWidth = nav.offsetWidth || nav.clientWidth || 800;
-            var moreBtnWidth = 110; // reserve space for More button
-            var availableWidth = navWidth - moreBtnWidth - 40; // 40px for padding
-            var avgBtnWidth = 120; // approximate tab button width
-            var maxVisible = Math.max(3, Math.min(7, Math.floor(availableWidth / avgBtnWidth)));
+                var allBtns = Array.from(nav.querySelectorAll('button:not(.hub-more-btn)'));
+                if (allBtns.length <= 5) return;
 
-            var visibleBtns = allBtns.slice(0, maxVisible);
-            var hiddenBtns = allBtns.slice(maxVisible);
+                nav.dataset.finalMore = 'done';
 
-            if (hiddenBtns.length === 0) return;
+                // Remove any existing More containers inside nav
+                nav.querySelectorAll('.hub-more-container').forEach(function (c) { c.remove(); });
 
-            // Hide overflow tabs
-            hiddenBtns.forEach(function (btn) {
-                btn.style.display = 'none';
-            });
+                // Calculate how many tabs fit
+                var navW = nav.clientWidth || 800;
+                var reserveForMore = 130;
+                var available = navW - reserveForMore - 32;
+                var perTab = 115;
+                var maxVis = Math.max(3, Math.min(7, Math.floor(available / perTab)));
 
-            // Create More button (positioned within nav, not after all buttons)
-            var moreWrap = document.createElement('div');
-            moreWrap.className = 'hub-more-container';
-            moreWrap.style.cssText = 'position:relative;display:inline-flex;flex-shrink:0;z-index:100;margin-left:auto;';
+                var visibleBtns = allBtns.slice(0, maxVis);
+                var hiddenBtns = allBtns.slice(maxVis);
+                if (hiddenBtns.length === 0) return;
 
-            var moreBtn = document.createElement('button');
-            moreBtn.type = 'button';
-            moreBtn.className = 'dairy-tab-btn hub-more-btn';
-            moreBtn.style.cssText = 'white-space:nowrap;flex-shrink:0;';
-            moreBtn.innerHTML = 'More \u25BC <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hiddenBtns.length + '</span>';
-
-            var dropdown = document.createElement('div');
-            dropdown.className = 'hub-more-dropdown';
-            dropdown.style.cssText = 'position:absolute;top:calc(100% + 6px);right:0;background:rgba(18,28,50,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;display:none;flex-direction:column;gap:3px;min-width:220px;z-index:9000;box-shadow:0 12px 48px rgba(0,0,0,0.6);max-height:350px;overflow-y:auto;backdrop-filter:blur(20px);';
-
-            hiddenBtns.forEach(function (btn) {
-                var item = document.createElement('button');
-                item.type = 'button';
-                item.className = btn.className;
-                item.innerHTML = btn.innerHTML;
-                item.style.cssText = 'width:100%;justify-content:flex-start;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:rgba(200,214,229,0.75);font-size:0.78rem;cursor:pointer;transition:all 0.15s ease;text-align:left;white-space:nowrap;';
-
-                // Hover effect
-                item.onmouseenter = function () { item.style.background = 'rgba(255,255,255,0.06)'; item.style.color = '#e0eaf4'; };
-                item.onmouseleave = function () { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
-
-                item.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    btn.click(); // Trigger the original hidden button
-                    dropdown.style.display = 'none';
-
-                    // Update active state visual on the More button
-                    moreBtn.innerHTML = '\u2713 ' + (btn.textContent || '').trim() + ' \u25BC <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hiddenBtns.length + '</span>';
+                // HIDE overflow tabs
+                hiddenBtns.forEach(function (btn) {
+                    btn.style.setProperty('display', 'none', 'important');
                 });
-                dropdown.appendChild(item);
-            });
 
-            // Toggle dropdown
-            moreBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                var isOpen = dropdown.style.display === 'flex';
-                // Close all other dropdowns first
-                document.querySelectorAll('.hub-more-dropdown').forEach(function (d) { d.style.display = 'none'; });
-                dropdown.style.display = isOpen ? 'none' : 'flex';
-            });
+                // Create More button INSIDE the nav
+                var moreBtn = document.createElement('button');
+                moreBtn.type = 'button';
+                moreBtn.className = 'dairy-tab-btn hub-more-btn';
+                moreBtn.style.cssText = 'white-space:nowrap;flex-shrink:0;margin-left:auto;';
+                moreBtn.innerHTML = 'More \u25BC <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hiddenBtns.length + '</span>';
 
-            // Close on outside click
-            document.addEventListener('click', function (e) {
-                if (!moreWrap.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
+                // Create dropdown on BODY (not inside nav — avoids overflow:hidden clipping)
+                var dropdown = document.createElement('div');
+                dropdown.className = 'hub-more-dropdown-body';
+                dropdown.style.cssText = 'position:fixed;display:none;flex-direction:column;gap:3px;min-width:220px;z-index:99999;background:rgba(18,28,50,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 12px 48px rgba(0,0,0,0.7);max-height:350px;overflow-y:auto;backdrop-filter:blur(20px);';
 
-            moreWrap.appendChild(moreBtn);
-            moreWrap.appendChild(dropdown);
-
-            // Insert MORE button right after the last visible button
-            var lastVisible = visibleBtns[visibleBtns.length - 1];
-            if (lastVisible && lastVisible.nextSibling) {
-                nav.insertBefore(moreWrap, lastVisible.nextSibling);
-            } else {
-                nav.appendChild(moreWrap);
-            }
-        });
-    }
-
-    // disabled;
-
-    // Run after DOM is ready and pages load
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { /* disabled */ });
-    } else {
-        /* disabled */
-    }
-
-    // Re-run when page container changes (page switches)
-    var pc = document.getElementById('page-container');
-    if (pc) {
-        new MutationObserver(function () {
-            // disabled3;
-        }).observe(pc, { childList: true });
-    }
-})();
-/* END SMART MORE DROPDOWN v2 */
-
-
-/* ============================================================
-   FINAL MORE DROPDOWN v3 — Dropdown on document.body, tabs hidden
-   ============================================================ */
-(function () {
-    function finalMoreDropdown() {
-        var navSelectors = '.dairy-nav,.vet-nav,.en-nav,.crm-nav,.vermi-nav,.tree-nav,.aqua-nav,.paint-nav,.biogas-nav,.wind-nav,.solar-nav,.carbon-nav,.fin-nav';
-        document.querySelectorAll(navSelectors).forEach(function (nav) {
-            if (nav.dataset.finalMore === 'done') return;
-
-            var allBtns = Array.from(nav.querySelectorAll('button:not(.hub-more-btn)'));
-            if (allBtns.length <= 5) return;
-
-            nav.dataset.finalMore = 'done';
-
-            // Remove any existing More containers inside nav
-            nav.querySelectorAll('.hub-more-container').forEach(function (c) { c.remove(); });
-
-            // Calculate how many tabs fit
-            var navW = nav.clientWidth || 800;
-            var reserveForMore = 130;
-            var available = navW - reserveForMore - 32;
-            var perTab = 115;
-            var maxVis = Math.max(3, Math.min(7, Math.floor(available / perTab)));
-
-            var visibleBtns = allBtns.slice(0, maxVis);
-            var hiddenBtns = allBtns.slice(maxVis);
-            if (hiddenBtns.length === 0) return;
-
-            // HIDE overflow tabs
-            hiddenBtns.forEach(function (btn) {
-                btn.style.setProperty('display', 'none', 'important');
-            });
-
-            // Create More button INSIDE the nav
-            var moreBtn = document.createElement('button');
-            moreBtn.type = 'button';
-            moreBtn.className = 'dairy-tab-btn hub-more-btn';
-            moreBtn.style.cssText = 'white-space:nowrap;flex-shrink:0;margin-left:auto;';
-            moreBtn.innerHTML = 'More \u25BC <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hiddenBtns.length + '</span>';
-
-            // Create dropdown on BODY (not inside nav — avoids overflow:hidden clipping)
-            var dropdown = document.createElement('div');
-            dropdown.className = 'hub-more-dropdown-body';
-            dropdown.style.cssText = 'position:fixed;display:none;flex-direction:column;gap:3px;min-width:220px;z-index:99999;background:rgba(18,28,50,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 12px 48px rgba(0,0,0,0.7);max-height:350px;overflow-y:auto;backdrop-filter:blur(20px);';
-
-            hiddenBtns.forEach(function (btn) {
-                var item = document.createElement('button');
-                item._originalBtn = btn; // Link to original button
-                item.type = 'button';
-                item.className = 'dropdown-tab-item';
-                item.innerHTML = btn.innerHTML;
-                item.style.cssText = 'width:100%;justify-content:flex-start;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:rgba(200,214,229,0.75);font-size:0.78rem;cursor:pointer;transition:background 0.15s ease;text-align:left;white-space:nowrap;font-family:Inter,sans-serif;';
-                item.onmouseenter = function () { item.style.background = 'rgba(255,255,255,0.06)'; item.style.color = '#e0eaf4'; };
-                item.onmouseleave = function () { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
-                item.addEventListener('click', function (e) {
-                    e.stopPropagation();
-
-                    // Direct click might fail if btn is display:none
-                    // Intercept and call onclick directly if possible
-                    var oc = btn.getAttribute('onclick');
-                    if (oc) {
-                        try {
-                            var fn = new Function(oc);
-                            fn.call(btn);
-                        } catch (err) {
-                            console.warn('Direct onclick failed, falling back to click()', err);
-                            btn.click();
-                        }
-                    } else {
+                hiddenBtns.forEach(function (btn) {
+                    var item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'dropdown-tab-item';
+                    item.innerHTML = btn.innerHTML;
+                    item.style.cssText = 'width:100%;justify-content:flex-start;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:rgba(200,214,229,0.75);font-size:0.78rem;cursor:pointer;transition:background 0.15s ease;text-align:left;white-space:nowrap;font-family:Inter,sans-serif;';
+                    item.onmouseenter = function () { item.style.background = 'rgba(255,255,255,0.06)'; item.style.color = '#e0eaf4'; };
+                    item.onmouseleave = function () { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
+                    item.addEventListener('click', function (e) {
+                        e.stopPropagation();
                         btn.click();
+                        dropdown.style.display = 'none';
+                    });
+                    dropdown.appendChild(item);
+                });
+
+                document.body.appendChild(dropdown);
+
+                // Position dropdown below the More button
+                moreBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    // Close all other dropdowns
+                    document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) {
+                        if (d !== dropdown) d.style.display = 'none';
+                    });
+                    var isOpen = dropdown.style.display === 'flex';
+                    if (isOpen) {
+                        dropdown.style.display = 'none';
+                    } else {
+                        var rect = moreBtn.getBoundingClientRect();
+                        dropdown.style.top = (rect.bottom + 4) + 'px';
+                        dropdown.style.left = Math.max(10, rect.right - 240) + 'px';
+                        dropdown.style.display = 'flex';
                     }
-
-                    dropdown.style.display = 'none';
                 });
-                dropdown.appendChild(item);
-            });
 
-            document.body.appendChild(dropdown);
-
-            // Position dropdown below the More button
-            moreBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                // Close all other dropdowns
-                document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) {
-                    if (d !== dropdown) d.style.display = 'none';
+                // Close on outside click
+                document.addEventListener('click', function (e) {
+                    if (!moreBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.style.display = 'none';
+                    }
                 });
-                var isOpen = dropdown.style.display === 'flex';
-                if (isOpen) {
-                    dropdown.style.display = 'none';
+
+                // Insert More button right after last visible tab
+                var lastVis = visibleBtns[visibleBtns.length - 1];
+                if (lastVis && lastVis.nextSibling) {
+                    nav.insertBefore(moreBtn, lastVis.nextSibling);
                 } else {
-                    var rect = moreBtn.getBoundingClientRect();
-                    dropdown.style.top = (rect.bottom + 4) + 'px';
-                    dropdown.style.left = Math.max(10, rect.right - 240) + 'px';
-                    dropdown.style.display = 'flex';
+                    nav.appendChild(moreBtn);
                 }
             });
+        }
 
-            // Close on outside click
-            document.addEventListener('click', function (e) {
-                if (!moreBtn.contains(e.target) && !dropdown.contains(e.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
+        // Run after DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { setTimeout(finalMoreDropdown, 700); });
+        } else {
+            setTimeout(finalMoreDropdown, 700);
+        }
 
-            // Insert More button right after last visible tab
-            var lastVis = visibleBtns[visibleBtns.length - 1];
-            if (lastVis && lastVis.nextSibling) {
-                nav.insertBefore(moreBtn, lastVis.nextSibling);
-            } else {
-                nav.appendChild(moreBtn);
-            }
-        });
-    }
+        // Re-run on page switches
+        var pc = document.getElementById('page-container');
+        if (pc) {
+            new MutationObserver(function () {
+                setTimeout(finalMoreDropdown, 500);
+            }).observe(pc, { childList: true });
+        }
 
-    // Run after DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { setTimeout(finalMoreDropdown, 700); });
-    } else {
-        setTimeout(finalMoreDropdown, 700);
-    }
-
-    // Re-run on page switches
-    var pc = document.getElementById('page-container');
-    if (pc) {
-        new MutationObserver(function () {
-            setTimeout(finalMoreDropdown, 500);
-        }).observe(pc, { childList: true });
-    }
-
-    window.finalMoreDropdown = finalMoreDropdown;
-})();
-/* END FINAL MORE DROPDOWN v3 */
+        window.finalMoreDropdown = finalMoreDropdown;
+    })();
+    /* END FINAL MORE DROPDOWN v3 */
 
 
-/* ============================================================
-   THEME INJECTOR v7.1 — Beats all !important via runtime <style>
-   ============================================================ */
-(function () {
-    var LIGHT_CSS_ID = 'vedavathi-light-override';
+    /* ============================================================
+       THEME INJECTOR v7.1 — Beats all !important via runtime <style>
+       ============================================================ */
+    (function () {
+        var LIGHT_CSS_ID = 'vedavathi-light-override';
 
-    var lightCSS = `
+        var lightCSS = `
         /* LIGHT THEME — injected as last stylesheet — wins all battles */
         body, html { background: #f0f4f8 !important; color: #1e293b !important; }
         .sidebar { background: #ffffff !important; border-right: 1px solid #e2e8f0 !important; }
@@ -20174,468 +20702,431 @@ document.addEventListener('DOMContentLoaded', function () {
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.03) !important; }
     `;
 
-    // Patch ThemeManager.apply to inject/remove the light stylesheet
-    var _origApply = null;
-    function patchThemeManager() {
-        if (!window.ThemeManager) return false;
-        if (window.ThemeManager._patched) return true;
+        // Patch ThemeManager.apply to inject/remove the light stylesheet
+        var _origApply = null;
+        function patchThemeManager() {
+            if (!window.ThemeManager) return false;
+            if (window.ThemeManager._patched) return true;
 
-        _origApply = window.ThemeManager.apply.bind(window.ThemeManager);
-        window.ThemeManager.apply = function () {
-            _origApply();
-            var existing = document.getElementById(LIGHT_CSS_ID);
-            if (!this.isDark) {
-                // LIGHT mode — inject stylesheet
-                if (!existing) {
-                    var style = document.createElement('style');
-                    style.id = LIGHT_CSS_ID;
-                    style.textContent = lightCSS;
-                    document.head.appendChild(style);
-                }
-            } else {
-                // DARK mode — remove injected stylesheet
-                if (existing) existing.remove();
-            }
-        };
-        window.ThemeManager._patched = true;
-
-        // Re-apply current theme to ensure correct state
-        window.ThemeManager.apply();
-        return true;
-    }
-
-    // Try immediately, retry if ThemeManager not ready yet
-    if (!patchThemeManager()) {
-        var attempts = 0;
-        var interval = setInterval(function () {
-            if (patchThemeManager() || ++attempts > 30) clearInterval(interval);
-        }, 200);
-    }
-})();
-/* END THEME INJECTOR v7.1 */
-
-
-/* ============================================================
-   UNIVERSAL TAB FIX v7.2 — Makes all tabs work reliably
-   ============================================================ */
-(function () {
-
-    /* 1. Robust universal tab switcher
-     *    Tries multiple ID patterns to find the content pane:
-     *    - Exact ID match
-     *    - Prefixed with pane class
-     *    - data-tab attribute match
-     */
-    window._robustTabSwitch = function (tabId, btn) {
-        if (!tabId) return;
-
-        // Find closest tab nav container
-        var nav = btn ? (btn.closest('.dairy-nav') || btn.closest('.vet-nav') ||
-            btn.closest('.en-nav') || btn.closest('.crm-nav') ||
-            btn.closest('.vermi-nav') || btn.closest('.tree-nav') ||
-            btn.closest('.aqua-nav') || btn.closest('.paint-nav') ||
-            btn.closest('.biogas-nav') || btn.closest('.wind-nav') ||
-            btn.closest('.solar-nav') || btn.closest('.carbon-nav') ||
-            btn.closest('.fin-nav') || btn.closest('[class*="-nav"]')) : null;
-
-        // Deactivate all tab buttons in this nav
-        if (nav) {
-            nav.querySelectorAll('button').forEach(function (b) {
-                b.classList.remove('active');
-            });
-        }
-
-        // Activate clicked button
-        if (btn) {
-            btn.classList.add('active');
-        }
-
-        // Find the content container (usually next sibling of nav, or inside page area)
-        var container = null;
-        if (nav) {
-            container = nav.closest('.page-section') || nav.parentElement;
-        }
-        if (!container) {
-            container = document.getElementById('page-container') || document.body;
-        }
-
-        // Hide all panes in this container
-        var paneClasses = ['.dairy-pane', '.tab-pane', '.tabpane', '.pane', '.kems-pane',
-            '[class*="-pane"]'];
-        var allPanes = [];
-        paneClasses.forEach(function (sel) {
-            container.querySelectorAll(sel).forEach(function (p) {
-                allPanes.push(p);
-            });
-        });
-
-        // Deduplicate
-        var seen = new Set();
-        allPanes = allPanes.filter(function (p) {
-            if (seen.has(p)) return false;
-            seen.add(p);
-            return true;
-        });
-
-        allPanes.forEach(function (p) {
-            p.classList.remove('active');
-            p.style.display = 'none';
-        });
-
-        // Try to find the matching pane by various ID patterns
-        var pane = document.getElementById(tabId);
-
-        // Also try common prefixed variants
-        if (!pane) {
-            var prefixes = ['wnd-', 'sol-', 'bio-', 'cattle-', 'poultry-', 'aqua-', 'vermi-',
-                'tree-', 'paint-', 'carbon-', 'crm-', 'fin-', 'vet-', 'vedic-',
-                'trust-', 'cmd-', 'log-', 'water-', 'ticket-', 'wf-', 'hyd-',
-                'h2-', 'kinetic-', 'kems-', 'grid-', 'bi-', 'dms-', 'hrm-',
-                'inv-', 'booking-', 'lms-', 'survey-', 'field-', 'farmer-', 'p-'];
-            for (var i = 0; i < prefixes.length; i++) {
-                pane = document.getElementById(prefixes[i] + tabId);
-                if (pane) break;
-            }
-        }
-
-        // Also try data-tab attribute
-        if (!pane) {
-            pane = container.querySelector('[data-tab="' + tabId + '"]');
-        }
-
-        if (pane) {
-            pane.classList.add('active');
-            pane.style.display = '';
-        }
-    };
-
-    /* 2. Fix More dropdown tab clicks
-     *    When a tab in the More dropdown is clicked, it calls btn.click() on the
-     *    ORIGINAL hidden button. But since we set display:none on that button,
-     *    the click may not properly trigger. Fix: intercept and call the function directly.
-     */
-    document.addEventListener('click', function (e) {
-        var item = e.target.closest('.dropdown-tab-item');
-        if (!item) return;
-
-        // Get the onclick from the original button
-        var originalBtn = item._originalBtn;
-        if (originalBtn) {
-            var oc = originalBtn.getAttribute('onclick');
-            if (oc) {
-                try {
-                    // Execute the onclick directly
-                    var fn = new Function(oc);
-                    fn.call(originalBtn);
-                } catch (err) {
-                    console.warn('More dropdown click failed:', err);
-                }
-            }
-        }
-    });
-
-    /* 3. Add placeholder content for empty tab panes
-     *    After page loads, check all panes — if any are empty, add a placeholder
-     */
-    function addPlaceholders() {
-        document.querySelectorAll('.dairy-pane, .tab-pane, .kems-pane, [class*="-pane"]').forEach(function (pane) {
-            if (pane.innerHTML.trim() === '' || pane.children.length === 0) {
-                var tabName = pane.id || pane.dataset.tab || 'this section';
-                pane.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(200,214,229,0.4);font-size:0.95rem;">' +
-                    '<div style="font-size:2.5rem;margin-bottom:12px;">🔧</div>' +
-                    '<div style="font-weight:600;margin-bottom:6px;">Module Coming Soon</div>' +
-                    '<div style="font-size:0.82rem;color:rgba(200,214,229,0.3);">' + tabName + ' is under development</div>' +
-                    '</div>';
-            }
-        });
-    }
-
-    setTimeout(addPlaceholders, 1500);
-
-    // Re-run when pages switch
-    var pc = document.getElementById('page-container');
-    if (pc) {
-        new MutationObserver(function () {
-            setTimeout(addPlaceholders, 800);
-        }).observe(pc, { childList: true });
-    }
-
-    /* 4. Fix tab buttons in More dropdown to properly reference originals
-     *    Patch finalMoreDropdown to store original button reference
-     */
-    var _origFinalMore = window.finalMoreDropdown;
-    if (_origFinalMore) {
-        window.finalMoreDropdown = function () {
-            _origFinalMore();
-            // After dropdown is built, link dropdown items to original buttons
-            document.querySelectorAll('.hub-more-dropdown-body').forEach(function (dd) {
-                dd.querySelectorAll('.dropdown-tab-item').forEach(function (item, idx) {
-                    // Already handled in finalMoreDropdown v3
-                });
-            });
-        };
-    }
-
-    console.log('Universal Tab Fix v7.2 loaded');
-})();
-/* END UNIVERSAL TAB FIX v7.2 */
-
-
-/* ============================================================
-   EMPTY STATE & LOADING TIMEOUT FIXES v7.5
-   Addresses medium priority issues from audit
-   ============================================================ */
-(function () {
-
-    /* 1. Add empty state fallbacks for tables
-     *    Tables without data show a placeholder message
-     */
-    function addTableEmptyStates() {
-        document.querySelectorAll('table').forEach(function (table) {
-            var tbody = table.querySelector('tbody');
-            if (tbody && tbody.rows.length === 0) {
-                var ths = table.querySelectorAll('th');
-                var colCount = ths.length || 1;
-                var existingEmpty = tbody.querySelector('.empty-state, .empty-row');
-                if (!existingEmpty) {
-                    var emptyRow = document.createElement('tr');
-                    emptyRow.className = 'empty-state';
-                    emptyRow.innerHTML = '<td colspan="' + colCount + '" style="text-align:center;padding:40px;color:rgba(200,214,229,0.4);">' +
-                        '<div style="font-size:2rem;margin-bottom:8px;">📋</div>' +
-                        '<div style="font-weight:600;">No Data Available</div>' +
-                        '<div style="font-size:0.85rem;margin-top:4px;">Data will appear here once available</div>' +
-                        '</td>';
-                    tbody.appendChild(emptyRow);
-                }
-            }
-        });
-    }
-
-    /* 2. Handle stuck loading states
-     *    Replace loading text with timeout message after 10 seconds
-     */
-    function fixLoadingStates() {
-        var loadingSelectors = [
-            '[id*="loading"]',
-            '[class*="loading"]',
-            '[data-loading="true"]'
-        ];
-
-        loadingSelectors.forEach(function (sel) {
-            document.querySelectorAll(sel).forEach(function (el) {
-                var text = el.textContent || el.innerText || '';
-                var lowerText = text.toLowerCase();
-                if (lowerText.includes('loading') || lowerText.includes('fetching')) {
-                    // Add timeout warning after 10 seconds
-                    setTimeout(function () {
-                        if (el.textContent.toLowerCase().includes('loading')) {
-                            el.style.opacity = '0.6';
-                            el.setAttribute('data-timeout', 'true');
-                        }
-                    }, 10000);
-                }
-            });
-        });
-    }
-
-    /* 3. Add ARIA labels to inputs without them
-     *    Addresses accessibility issues
-     */
-    function fixAccessibility() {
-        document.querySelectorAll('input:not([aria-label]):not([id])').forEach(function (input) {
-            input.setAttribute('aria-label', 'Input field');
-        });
-
-        document.querySelectorAll('select:not([aria-label]):not([id])').forEach(function (select) {
-            select.setAttribute('aria-label', 'Select dropdown');
-        });
-
-        document.querySelectorAll('button:not([type])').forEach(function (btn) {
-            btn.setAttribute('type', 'button');
-        });
-    }
-
-    // Run fixes on page load and on navigation
-    setTimeout(function () {
-        addTableEmptyStates();
-        fixLoadingStates();
-        fixAccessibility();
-    }, 2000);
-
-    // Re-run when page content changes
-    var pc = document.getElementById('page-container');
-    if (pc) {
-        new MutationObserver(function () {
-            setTimeout(function () {
-                addTableEmptyStates();
-                fixLoadingStates();
-            }, 1000);
-        }).observe(pc, { childList: true, subtree: true });
-    }
-
-    console.log('Empty State & Loading Fix v7.5 loaded');
-})();
-/* END EMPTY STATE FIXES */
-
-
-/* ============================================================
-   MASTER TAB FIX v7.3 — Patches all tab switching functions at runtime
-   ============================================================ */
-(function () {
-    'use strict';
-
-    /* A. Universal pane show/hide that beats !important CSS */
-    function showPane(el) {
-        if (!el) return;
-        el.classList.add('active');
-        el.style.setProperty('display', 'block', 'important');
-    }
-    function hidePane(el) {
-        if (!el) return;
-        el.classList.remove('active');
-        el.style.setProperty('display', 'none', 'important');
-    }
-
-    /* B. Find pane by ID with prefix fallback */
-    function findPane(id) {
-        if (!id) return null;
-        var el = document.getElementById(id);
-        if (el) return el;
-
-        // Try common prefixes
-        var prefixes = ['d-', 'wnd-', 'sol-', 'bio-', 'p-', 'aqua-', 'vpms-', 'tree-', 'paint-',
-            'carb-', 'crm-', 'vet-', 'vedic-', 'trust-', 'cmd-', 'log-', 'water-',
-            'h2-', 'hyd-', 'kin-', 'kems-', 'grid-', 'bi-', 'dms-', 'hrm-',
-            'inv-', 'booking-', 'lms-', 'survey-', 'field-', 'farmer-', 'tick-',
-            'wf-', 'fin-', 'carbon-'];
-        for (var i = 0; i < prefixes.length; i++) {
-            el = document.getElementById(prefixes[i] + id);
-            if (el) return el;
-        }
-        return null;
-    }
-
-    /* C. Master tab switch — works for any page */
-    function masterTabSwitch(id, btn) {
-        if (!id) return;
-
-        // 1. Find all pane containers (broad search)
-        var container = document.getElementById('page-container') || document.body;
-        var paneSelectors = '.dairy-pane, .vet-pane, .tab-pane, .kems-pane, [class*="-pane"]';
-        container.querySelectorAll(paneSelectors).forEach(function (p) {
-            hidePane(p);
-        });
-
-        // 2. Find and show the target pane
-        var target = findPane(id);
-        if (target) showPane(target);
-
-        // 3. Update button active states
-        if (btn) {
-            var nav = btn.closest('[class*="-nav"]') || btn.parentElement;
-            if (nav) {
-                nav.querySelectorAll('button').forEach(function (b) {
-                    if (!b.classList.contains('hub-more-btn')) {
-                        b.classList.remove('active');
+            _origApply = window.ThemeManager.apply.bind(window.ThemeManager);
+            window.ThemeManager.apply = function () {
+                _origApply();
+                var existing = document.getElementById(LIGHT_CSS_ID);
+                if (!this.isDark) {
+                    // LIGHT mode — inject stylesheet
+                    if (!existing) {
+                        var style = document.createElement('style');
+                        style.id = LIGHT_CSS_ID;
+                        style.textContent = lightCSS;
+                        document.head.appendChild(style);
                     }
-                });
-            }
-            btn.classList.add('active');
-        }
-    }
-
-    /* D. Patch existing tab functions to use prefix fallback + !important display */
-
-    // List of all tab functions to patch
-    var tabFunctions = [
-        'windTab', 'solarTab', 'switchBiogasTab', 'switchCarbonTab',
-        'switchHydroTab', 'switchHydrogenTab', 'switchKineticTab', 'switchAgriTourTab',
-        'switchPaintTab', 'switchVpmsTab', 'switchCommandTab', 'switchLogisticsTab',
-        'switchWaterTab', 'switchTrustTab', 'switchCowTab', 'switchPoultryTab',
-        'switchTreeTab', 'switchVetTab', 'switchSolarTab',
-        'vetTab', 'vedicTab', 'trustTab', 'waterTab',
-        'ticketTab', 'wfTab', 'treeTab', 'vermiTab',
-        'carbonTab', 'kineticTab', 'hydroTab', 'hydrogenTab',
-        'biogasTab', 'paintTab', 'aquaTab', 'crmTab',
-        'finTab', 'dmsTab', 'biTab', 'hrmTab', 'invTab',
-        'bookingTab', 'lmsTab', 'surveyTab', 'fieldTab', 'farmerTab'
-    ];
-
-    // Save originals and wrap with prefix-aware + !important version
-    tabFunctions.forEach(function (fnName) {
-        if (typeof window[fnName] === 'function') {
-            var orig = window[fnName];
-            window[fnName] = function (id, btn) {
-                // Call original first
-                orig(id, btn);
-
-                // Then ensure the target pane is visible with !important
-                var target = findPane(id);
-                if (target) {
-                    showPane(target);
-                }
-
-                // If no pane was shown, try masterTabSwitch
-                if (!target) {
-                    masterTabSwitch(id, btn);
+                } else {
+                    // DARK mode — remove injected stylesheet
+                    if (existing) existing.remove();
                 }
             };
+            window.ThemeManager._patched = true;
+
+            // Re-apply current theme to ensure correct state
+            window.ThemeManager.apply();
+            return true;
         }
-    });
 
-    /* E. Fix dairyTab specifically — it uses different ID pattern */
-    var origDairyTab = window.dairyTab;
-    if (typeof origDairyTab === 'function') {
-        window.dairyTab = function (id, btn) {
-            // Smart Dairy uses 'd-' prefix: dairyTab('herd') → #d-herd
+        // Try immediately, retry if ThemeManager not ready yet
+        if (!patchThemeManager()) {
+            var attempts = 0;
+            var interval = setInterval(function () {
+                if (patchThemeManager() || ++attempts > 30) clearInterval(interval);
+            }, 200);
+        }
+    })();
+    /* END THEME INJECTOR v7.1 */
+
+
+    /* ============================================================
+       UNIVERSAL TAB FIX v7.2 — Makes all tabs work reliably
+       ============================================================ */
+    (function () {
+
+        /* 1. Robust universal tab switcher
+         *    Tries multiple ID patterns to find the content pane:
+         *    - Exact ID match
+         *    - Prefixed with pane class
+         *    - data-tab attribute match
+         */
+        window._robustTabSwitch = function (tabId, btn) {
+            if (!tabId) return;
+
+            // Find closest tab nav container
+            var nav = btn ? (btn.closest('.dairy-nav') || btn.closest('.vet-nav') ||
+                btn.closest('.en-nav') || btn.closest('.crm-nav') ||
+                btn.closest('.vermi-nav') || btn.closest('.tree-nav') ||
+                btn.closest('.aqua-nav') || btn.closest('.paint-nav') ||
+                btn.closest('.biogas-nav') || btn.closest('.wind-nav') ||
+                btn.closest('.solar-nav') || btn.closest('.carbon-nav') ||
+                btn.closest('.fin-nav') || btn.closest('[class*="-nav"]')) : null;
+
+            // Deactivate all tab buttons in this nav
+            if (nav) {
+                nav.querySelectorAll('button').forEach(function (b) {
+                    b.classList.remove('active');
+                });
+            }
+
+            // Activate clicked button
+            if (btn) {
+                btn.classList.add('active');
+            }
+
+            // Find the content container (usually next sibling of nav, or inside page area)
+            var container = null;
+            if (nav) {
+                container = nav.closest('.page-section') || nav.parentElement;
+            }
+            if (!container) {
+                container = document.getElementById('page-container') || document.body;
+            }
+
+            // Hide all panes in this container
+            var paneClasses = ['.dairy-pane', '.tab-pane', '.tabpane', '.pane', '.kems-pane',
+                '[class*="-pane"]'];
+            var allPanes = [];
+            paneClasses.forEach(function (sel) {
+                container.querySelectorAll(sel).forEach(function (p) {
+                    allPanes.push(p);
+                });
+            });
+
+            // Deduplicate
+            var seen = new Set();
+            allPanes = allPanes.filter(function (p) {
+                if (seen.has(p)) return false;
+                seen.add(p);
+                return true;
+            });
+
+            allPanes.forEach(function (p) {
+                p.classList.remove('active');
+                p.style.display = 'none';
+            });
+
+            // Try to find the matching pane by various ID patterns
+            var pane = document.getElementById(tabId);
+
+            // Also try common prefixed variants
+            if (!pane) {
+                var prefixes = ['wnd-', 'sol-', 'bio-', 'cattle-', 'poultry-', 'aqua-', 'vermi-',
+                    'tree-', 'paint-', 'carbon-', 'crm-', 'fin-', 'vet-', 'vedic-',
+                    'trust-', 'cmd-', 'log-', 'water-', 'ticket-', 'wf-', 'hyd-',
+                    'h2-', 'kinetic-', 'kems-', 'grid-', 'bi-', 'dms-', 'hrm-',
+                    'inv-', 'booking-', 'lms-', 'survey-', 'field-', 'farmer-', 'p-'];
+                for (var i = 0; i < prefixes.length; i++) {
+                    pane = document.getElementById(prefixes[i] + tabId);
+                    if (pane) break;
+                }
+            }
+
+            // Also try data-tab attribute
+            if (!pane) {
+                pane = container.querySelector('[data-tab="' + tabId + '"]');
+            }
+
+            if (pane) {
+                pane.classList.add('active');
+                pane.style.display = '';
+            }
+        };
+
+        /* 2. Fix More dropdown tab clicks
+         *    When a tab in the More dropdown is clicked, it calls btn.click() on the
+         *    ORIGINAL hidden button. But since we set display:none on that button,
+         *    the click may not properly trigger. Fix: intercept and call the function directly.
+         */
+        document.addEventListener('click', function (e) {
+            var item = e.target.closest('.dropdown-tab-item');
+            if (!item) return;
+
+            // Get the onclick from the original button
+            var originalBtn = item._originalBtn;
+            if (originalBtn) {
+                var oc = originalBtn.getAttribute('onclick');
+                if (oc) {
+                    try {
+                        // Execute the onclick directly
+                        var fn = new Function(oc);
+                        fn.call(originalBtn);
+                    } catch (err) {
+                        console.warn('More dropdown click failed:', err);
+                    }
+                }
+            }
+        });
+
+        /* 3. Add placeholder content for empty tab panes
+         *    After page loads, check all panes — if any are empty, add a placeholder
+         */
+        function addPlaceholders() {
+            document.querySelectorAll('.dairy-pane, .tab-pane, .kems-pane, [class*="-pane"]').forEach(function (pane) {
+                if (pane.innerHTML.trim() === '' || pane.children.length === 0) {
+                    var tabName = pane.id || pane.dataset.tab || 'this section';
+                    pane.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(200,214,229,0.4);font-size:0.95rem;">' +
+                        '<div style="font-size:2.5rem;margin-bottom:12px;">🔧</div>' +
+                        '<div style="font-weight:600;margin-bottom:6px;">Module Coming Soon</div>' +
+                        '<div style="font-size:0.82rem;color:rgba(200,214,229,0.3);">' + tabName + ' is under development</div>' +
+                        '</div>';
+                }
+            });
+        }
+
+        setTimeout(addPlaceholders, 1500);
+
+        // Re-run when pages switch
+        var pc = document.getElementById('page-container');
+        if (pc) {
+            new MutationObserver(function () {
+                setTimeout(addPlaceholders, 800);
+            }).observe(pc, { childList: true });
+        }
+
+        /* 4. Fix tab buttons in More dropdown to properly reference originals
+         *    Patch finalMoreDropdown to store original button reference
+         */
+        var _origFinalMore = window.finalMoreDropdown;
+        if (_origFinalMore) {
+            window.finalMoreDropdown = function () {
+                _origFinalMore();
+                // After dropdown is built, link dropdown items to original buttons
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function (dd) {
+                    dd.querySelectorAll('.dropdown-tab-item').forEach(function (item, idx) {
+                        // Already handled in finalMoreDropdown v3
+                    });
+                });
+            };
+        }
+
+        console.log('Universal Tab Fix v7.2 loaded');
+    })();
+    /* END UNIVERSAL TAB FIX v7.2 */
+
+
+    /* ============================================================
+       EMPTY STATE & LOADING TIMEOUT FIXES v7.5
+       Addresses medium priority issues from audit
+       ============================================================ */
+    (function () {
+
+        /* 1. Add empty state fallbacks for tables
+         *    Tables without data show a placeholder message
+         */
+        function addTableEmptyStates() {
+            document.querySelectorAll('table').forEach(function (table) {
+                var tbody = table.querySelector('tbody');
+                if (tbody && tbody.rows.length === 0) {
+                    var ths = table.querySelectorAll('th');
+                    var colCount = ths.length || 1;
+                    var existingEmpty = tbody.querySelector('.empty-state, .empty-row');
+                    if (!existingEmpty) {
+                        var emptyRow = document.createElement('tr');
+                        emptyRow.className = 'empty-state';
+                        emptyRow.innerHTML = '<td colspan="' + colCount + '" style="text-align:center;padding:40px;color:rgba(200,214,229,0.4);">' +
+                            '<div style="font-size:2rem;margin-bottom:8px;">📋</div>' +
+                            '<div style="font-weight:600;">No Data Available</div>' +
+                            '<div style="font-size:0.85rem;margin-top:4px;">Data will appear here once available</div>' +
+                            '</td>';
+                        tbody.appendChild(emptyRow);
+                    }
+                }
+            });
+        }
+
+        /* 2. Handle stuck loading states
+         *    Replace loading text with timeout message after 10 seconds
+         */
+        function fixLoadingStates() {
+            var loadingSelectors = [
+                '[id*="loading"]',
+                '[class*="loading"]',
+                '[data-loading="true"]'
+            ];
+
+            loadingSelectors.forEach(function (sel) {
+                document.querySelectorAll(sel).forEach(function (el) {
+                    var text = el.textContent || el.innerText || '';
+                    var lowerText = text.toLowerCase();
+                    if (lowerText.includes('loading') || lowerText.includes('fetching')) {
+                        // Add timeout warning after 10 seconds
+                        setTimeout(function () {
+                            if (el.textContent.toLowerCase().includes('loading')) {
+                                el.style.opacity = '0.6';
+                                el.setAttribute('data-timeout', 'true');
+                            }
+                        }, 10000);
+                    }
+                });
+            });
+        }
+
+        /* 3. Add ARIA labels to inputs without them
+         *    Addresses accessibility issues
+         */
+        function fixAccessibility() {
+            document.querySelectorAll('input:not([aria-label]):not([id])').forEach(function (input) {
+                input.setAttribute('aria-label', 'Input field');
+            });
+
+            document.querySelectorAll('select:not([aria-label]):not([id])').forEach(function (select) {
+                select.setAttribute('aria-label', 'Select dropdown');
+            });
+
+            document.querySelectorAll('button:not([type])').forEach(function (btn) {
+                btn.setAttribute('type', 'button');
+            });
+        }
+
+        // Run fixes on page load and on navigation
+        setTimeout(function () {
+            addTableEmptyStates();
+            fixLoadingStates();
+            fixAccessibility();
+        }, 2000);
+
+        // Re-run when page content changes
+        var pc = document.getElementById('page-container');
+        if (pc) {
+            new MutationObserver(function () {
+                setTimeout(function () {
+                    addTableEmptyStates();
+                    fixLoadingStates();
+                }, 1000);
+            }).observe(pc, { childList: true, subtree: true });
+        }
+
+        console.log('Empty State & Loading Fix v7.5 loaded');
+    })();
+    /* END EMPTY STATE FIXES */
+
+
+    /* ============================================================
+       MASTER TAB FIX v7.3 — Patches all tab switching functions at runtime
+       ============================================================ */
+    (function () {
+        'use strict';
+
+        /* A. Universal pane show/hide that beats !important CSS */
+        function showPane(el) {
+            if (!el) return;
+            el.classList.add('active');
+            el.style.setProperty('display', 'block', 'important');
+        }
+        function hidePane(el) {
+            if (!el) return;
+            el.classList.remove('active');
+            el.style.setProperty('display', 'none', 'important');
+        }
+
+        /* B. Find pane by ID with prefix fallback */
+        function findPane(id) {
+            if (!id) return null;
+            var el = document.getElementById(id);
+            if (el) return el;
+
+            // Try common prefixes
+            var prefixes = ['d-', 'wnd-', 'sol-', 'bio-', 'p-', 'aqua-', 'vpms-', 'tree-', 'paint-',
+                'carb-', 'crm-', 'vet-', 'vedic-', 'trust-', 'cmd-', 'log-', 'water-',
+                'h2-', 'hyd-', 'kin-', 'kems-', 'grid-', 'bi-', 'dms-', 'hrm-',
+                'inv-', 'booking-', 'lms-', 'survey-', 'field-', 'farmer-', 'tick-',
+                'wf-', 'fin-', 'carbon-'];
+            for (var i = 0; i < prefixes.length; i++) {
+                el = document.getElementById(prefixes[i] + id);
+                if (el) return el;
+            }
+            return null;
+        }
+
+        /* C. Master tab switch — works for any page */
+        function masterTabSwitch(id, btn) {
+            if (!id) return;
+
+            // 1. Find all pane containers (broad search)
             var container = document.getElementById('page-container') || document.body;
-            container.querySelectorAll('.dairy-pane').forEach(function (p) { hidePane(p); });
+            var paneSelectors = '.dairy-pane, .vet-pane, .tab-pane, .kems-pane, [class*="-pane"]';
+            container.querySelectorAll(paneSelectors).forEach(function (p) {
+                hidePane(p);
+            });
 
-            var target = document.getElementById(id) || document.getElementById('d-' + id);
+            // 2. Find and show the target pane
+            var target = findPane(id);
             if (target) showPane(target);
 
-            // Update buttons
+            // 3. Update button active states
             if (btn) {
-                var nav = btn.closest('.dairy-nav') || btn.parentElement;
+                var nav = btn.closest('[class*="-nav"]') || btn.parentElement;
                 if (nav) {
-                    nav.querySelectorAll('.dairy-tab-btn').forEach(function (b) {
-                        b.classList.remove('active');
+                    nav.querySelectorAll('button').forEach(function (b) {
+                        if (!b.classList.contains('hub-more-btn')) {
+                            b.classList.remove('active');
+                        }
                     });
                 }
                 btn.classList.add('active');
             }
-        };
-    }
+        }
 
-    /* F. Patch sub-tab functions (Wind, Solar, Biogas) to use !important */
-    var subTabFunctions = ['windSubTab', 'solarSubTab', 'biogasSubTab'];
-    subTabFunctions.forEach(function (fnName) {
-        if (typeof window[fnName] === 'function') {
-            var orig = window[fnName];
-            window[fnName] = function (subId, btn, paneId) {
-                // Call original
-                orig(subId, btn, paneId);
+        /* D. Patch existing tab functions to use prefix fallback + !important display */
 
-                // Force visibility with !important 
-                var parentPane = paneId ? document.getElementById(paneId) : null;
-                if (parentPane) {
-                    parentPane.querySelectorAll('[class*="-sub-pane"]').forEach(function (p) {
-                        p.style.setProperty('display', 'none', 'important');
-                    });
-                    var target = parentPane.querySelector('#st-' + subId) ||
-                        parentPane.querySelector('#sub-' + subId) ||
-                        document.getElementById('st-' + subId) ||
-                        document.getElementById(subId);
+        // List of all tab functions to patch
+        var tabFunctions = [
+            'windTab', 'solarTab', 'switchBiogasTab', 'switchCarbonTab',
+            'switchHydroTab', 'switchHydrogenTab', 'switchKineticTab', 'switchAgriTourTab',
+            'switchPaintTab', 'switchVpmsTab', 'switchCommandTab', 'switchLogisticsTab',
+            'switchWaterTab', 'switchTrustTab', 'switchCowTab', 'switchPoultryTab',
+            'switchTreeTab', 'switchVetTab', 'switchSolarTab',
+            'vetTab', 'vedicTab', 'trustTab', 'waterTab',
+            'ticketTab', 'wfTab', 'treeTab', 'vermiTab',
+            'carbonTab', 'kineticTab', 'hydroTab', 'hydrogenTab',
+            'biogasTab', 'paintTab', 'aquaTab', 'crmTab',
+            'finTab', 'dmsTab', 'biTab', 'hrmTab', 'invTab',
+            'bookingTab', 'lmsTab', 'surveyTab', 'fieldTab', 'farmerTab'
+        ];
+
+        // Save originals and wrap with prefix-aware + !important version
+        tabFunctions.forEach(function (fnName) {
+            if (typeof window[fnName] === 'function') {
+                var orig = window[fnName];
+                window[fnName] = function (id, btn) {
+                    // Call original first
+                    orig(id, btn);
+
+                    // Then ensure the target pane is visible with !important
+                    var target = findPane(id);
                     if (target) {
-                        target.style.setProperty('display', 'block', 'important');
+                        showPane(target);
                     }
-                }
 
-                // Update sub-tab buttons
+                    // If no pane was shown, try masterTabSwitch
+                    if (!target) {
+                        masterTabSwitch(id, btn);
+                    }
+                };
+            }
+        });
+
+        /* E. Fix dairyTab specifically — it uses different ID pattern */
+        var origDairyTab = window.dairyTab;
+        if (typeof origDairyTab === 'function') {
+            window.dairyTab = function (id, btn) {
+                // Smart Dairy uses 'd-' prefix: dairyTab('herd') → #d-herd
+                var container = document.getElementById('page-container') || document.body;
+                container.querySelectorAll('.dairy-pane').forEach(function (p) { hidePane(p); });
+
+                var target = document.getElementById(id) || document.getElementById('d-' + id);
+                if (target) showPane(target);
+
+                // Update buttons
                 if (btn) {
-                    var nav = btn.closest('[class*="-nav"]') || btn.parentElement;
+                    var nav = btn.closest('.dairy-nav') || btn.parentElement;
                     if (nav) {
-                        nav.querySelectorAll('button').forEach(function (b) {
+                        nav.querySelectorAll('.dairy-tab-btn').forEach(function (b) {
                             b.classList.remove('active');
                         });
                     }
@@ -20643,133 +21134,576 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             };
         }
-    });
 
-    /* G. Also expose masterTabSwitch and findPane globally */
-    window.masterTabSwitch = masterTabSwitch;
-    window.findPane = findPane;
+        /* F. Patch sub-tab functions (Wind, Solar, Biogas) to use !important */
+        var subTabFunctions = ['windSubTab', 'solarSubTab', 'biogasSubTab'];
+        subTabFunctions.forEach(function (fnName) {
+            if (typeof window[fnName] === 'function') {
+                var orig = window[fnName];
+                window[fnName] = function (subId, btn, paneId) {
+                    // Call original
+                    orig(subId, btn, paneId);
 
-    console.log('Master Tab Fix v7.3 loaded — ' + tabFunctions.length + ' tab functions patched');
-})();
-/* END MASTER TAB FIX v7.3 */
+                    // Force visibility with !important 
+                    var parentPane = paneId ? document.getElementById(paneId) : null;
+                    if (parentPane) {
+                        parentPane.querySelectorAll('[class*="-sub-pane"]').forEach(function (p) {
+                            p.style.setProperty('display', 'none', 'important');
+                        });
+                        var target = parentPane.querySelector('#st-' + subId) ||
+                            parentPane.querySelector('#sub-' + subId) ||
+                            document.getElementById('st-' + subId) ||
+                            document.getElementById(subId);
+                        if (target) {
+                            target.style.setProperty('display', 'block', 'important');
+                        }
+                    }
+
+                    // Update sub-tab buttons
+                    if (btn) {
+                        var nav = btn.closest('[class*="-nav"]') || btn.parentElement;
+                        if (nav) {
+                            nav.querySelectorAll('button').forEach(function (b) {
+                                b.classList.remove('active');
+                            });
+                        }
+                        btn.classList.add('active');
+                    }
+                };
+            }
+        });
+
+        /* G. Also expose masterTabSwitch and findPane globally */
+        window.masterTabSwitch = masterTabSwitch;
+        window.findPane = findPane;
+
+        console.log('Master Tab Fix v7.3 loaded — ' + tabFunctions.length + ' tab functions patched');
+    })();
+    /* END MASTER TAB FIX v7.3 */
 
 
-/* ============================================================
-   MISSING TAB FUNCTIONS v7.4 — One function per module
-   ============================================================ */
+    /* ============================================================
+       MISSING TAB FUNCTIONS v7.4 — One function per module
+       ============================================================ */
 
-/* CRM */
-window.crmTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('crm-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-window.filterTasks = function (f) { console.log('Filter tasks:', f); };
-window.filterComms = function (f) { console.log('Filter comms:', f); };
-
-/* HRM */
-window.hrmTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('hrm-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Inventory */
-window.invTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('inv-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* DMS */
-window.dmsTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('dms-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* BI */
-window.biTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('bi-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Booking */
-window.bookingTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('bk-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* LMS */
-window.lmsTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('lms-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Field Service */
-window.fsTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('fs-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Farmer Portal */
-window.fpTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('fp-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Survey */
-window.surveyTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('srv-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Schemes */
-window.schemeTab = function (id, btn) {
-    var c = document.getElementById('page-container') || document.body;
-    c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-    var el = document.getElementById('sch-' + id) || document.getElementById(id);
-    if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
-    if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
-};
-
-/* Solar — Override existing solarTab to use prefix */
-(function () {
-    var _orig = window.solarTab;
-    window.solarTab = function (id, btn) {
+    /* CRM */
+    window.crmTab = function (id, btn) {
         var c = document.getElementById('page-container') || document.body;
         c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
-        var el = document.getElementById('sol-' + id) || document.getElementById(id);
+        var el = document.getElementById('crm-' + id) || document.getElementById(id);
         if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
         if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
     };
-})();
+    window.filterTasks = function (f) { console.log('Filter tasks:', f); };
+    window.filterComms = function (f) { console.log('Filter comms:', f); };
 
-console.log('Missing Tab Functions v7.4 loaded');
-/* END MISSING TAB FUNCTIONS v7.4 */
+    /* HRM */
+    window.hrmTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('hrm-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Inventory */
+    window.invTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('inv-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* DMS */
+    window.dmsTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('dms-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* BI */
+    window.biTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('bi-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Booking */
+    window.bookingTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('bk-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* LMS */
+    window.lmsTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('lms-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Field Service */
+    window.fsTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('fs-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Farmer Portal */
+    window.fpTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('fp-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Survey */
+    window.surveyTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('srv-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Schemes */
+    window.schemeTab = function (id, btn) {
+        var c = document.getElementById('page-container') || document.body;
+        c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+        var el = document.getElementById('sch-' + id) || document.getElementById(id);
+        if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+        if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+    };
+
+    /* Solar — Override existing solarTab to use prefix */
+    (function () {
+        var _orig = window.solarTab;
+        window.solarTab = function (id, btn) {
+            var c = document.getElementById('page-container') || document.body;
+            c.querySelectorAll('.dairy-pane').forEach(function (p) { p.classList.remove('active'); p.style.setProperty('display', 'none', 'important'); });
+            var el = document.getElementById('sol-' + id) || document.getElementById(id);
+            if (el) { el.classList.add('active'); el.style.setProperty('display', 'block', 'important'); }
+            if (btn) { var n = btn.closest('[class*="-nav"]') || btn.parentElement; if (n) n.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); }); btn.classList.add('active'); }
+        };
+    })();
+
+    console.log('Missing Tab Functions v7.4 loaded');
+    /* END MISSING TAB FUNCTIONS v7.4 */
+
+
+    /* ============================================================
+       MORE DROPDOWN v8 — Single clean implementation
+       ============================================================ */
+    (function () {
+        'use strict';
+
+        var MAX_VISIBLE = 7;
+
+        function applyMoreDropdown() {
+            // Find ALL tab navs in the page
+            var navs = document.querySelectorAll(
+                '.dairy-nav, .vet-nav, .en-nav, .crm-nav, .vermi-nav, .tree-nav, ' +
+                '.aqua-nav, .paint-nav, .biogas-nav, .wind-nav, .solar-nav, ' +
+                '.carbon-nav, .fin-nav, .trust-nav, .cmd-nav, .log-nav, ' +
+                '.water-nav, .vedic-nav, [class*="-nav"]'
+            );
+
+            navs.forEach(function (nav) {
+                // Force no horizontal overflow
+                nav.style.setProperty('overflow', 'hidden', 'important');
+                nav.style.setProperty('overflow-x', 'hidden', 'important');
+                nav.style.setProperty('display', 'flex', 'important');
+                nav.style.setProperty('flex-wrap', 'nowrap', 'important');
+                nav.style.setProperty('align-items', 'center', 'important');
+
+                // Get all tab buttons (exclude More buttons and dropdown items)
+                var allBtns = Array.from(nav.querySelectorAll('button')).filter(function (b) {
+                    return !b.classList.contains('hub-more-btn') &&
+                        !b.classList.contains('dropdown-tab-item');
+                });
+
+                if (allBtns.length <= MAX_VISIBLE) {
+                    // Few enough tabs — show all, remove any existing More
+                    allBtns.forEach(function (b) { b.style.removeProperty('display'); });
+                    nav.querySelectorAll('.hub-more-btn').forEach(function (b) { b.remove(); });
+                    return;
+                }
+
+                // Already processed and nothing changed? Skip.
+                if (nav._moreCount === allBtns.length) return;
+                nav._moreCount = allBtns.length;
+
+                // Remove any old More button and dropdown
+                nav.querySelectorAll('.hub-more-btn').forEach(function (b) { b.remove(); });
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) {
+                    if (d._parentNav === nav) d.remove();
+                });
+
+                // Reset all buttons first
+                allBtns.forEach(function (b) { b.style.removeProperty('display'); });
+
+                // Calculate how many fit
+                var navW = nav.offsetWidth || nav.clientWidth || 900;
+                var moreW = 130;
+                var available = navW - moreW - 20;
+                var perTab = 120;
+                var maxVis = Math.max(3, Math.min(MAX_VISIBLE, Math.floor(available / perTab)));
+
+                var visible = allBtns.slice(0, maxVis);
+                var hidden = allBtns.slice(maxVis);
+
+                if (hidden.length === 0) return;
+
+                // Hide overflow tabs
+                hidden.forEach(function (btn) {
+                    btn.style.setProperty('display', 'none', 'important');
+                });
+
+                // Create More button
+                var moreBtn = document.createElement('button');
+                moreBtn.type = 'button';
+                moreBtn.className = 'dairy-tab-btn hub-more-btn';
+                moreBtn.style.cssText = 'white-space:nowrap;flex-shrink:0;margin-left:auto;';
+                moreBtn.innerHTML = 'More &#9660; <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hidden.length + '</span>';
+
+                // Create dropdown on BODY to avoid clipping
+                var dropdown = document.createElement('div');
+                dropdown.className = 'hub-more-dropdown-body';
+                dropdown._parentNav = nav;
+                dropdown.style.cssText = 'position:fixed;display:none;flex-direction:column;gap:3px;min-width:220px;z-index:99999;background:rgba(18,28,50,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 12px 48px rgba(0,0,0,0.7);max-height:350px;overflow-y:auto;backdrop-filter:blur(20px);';
+
+                hidden.forEach(function (btn, i) {
+                    var item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'dropdown-tab-item';
+                    item.innerHTML = btn.innerHTML;
+                    item.style.cssText = 'width:100%;justify-content:flex-start;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:rgba(200,214,229,0.75);font-size:0.78rem;cursor:pointer;transition:background 0.15s ease;text-align:left;white-space:nowrap;font-family:Inter,sans-serif;';
+                    item.onmouseenter = function () { item.style.background = 'rgba(255,255,255,0.06)'; item.style.color = '#e0eaf4'; };
+                    item.onmouseleave = function () { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
+                    item.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        // Execute the original button's onclick
+                        var onclick = btn.getAttribute('onclick');
+                        if (onclick) {
+                            try { new Function(onclick).call(btn); } catch (err) { btn.click(); }
+                        } else {
+                            btn.click();
+                        }
+                        dropdown.style.display = 'none';
+                    });
+                    dropdown.appendChild(item);
+                });
+
+                document.body.appendChild(dropdown);
+
+                // Toggle dropdown
+                moreBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) {
+                        if (d !== dropdown) d.style.display = 'none';
+                    });
+                    var isOpen = dropdown.style.display === 'flex';
+                    if (isOpen) {
+                        dropdown.style.display = 'none';
+                    } else {
+                        var rect = moreBtn.getBoundingClientRect();
+                        dropdown.style.top = (rect.bottom + 4) + 'px';
+                        dropdown.style.left = Math.max(10, rect.right - 240) + 'px';
+                        dropdown.style.display = 'flex';
+                    }
+                });
+
+                // Append More button to nav
+                nav.appendChild(moreBtn);
+            });
+        }
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.hub-more-btn') && !e.target.closest('.hub-more-dropdown-body')) {
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) {
+                    d.style.display = 'none';
+                });
+            }
+        });
+
+        // Hook into showPage to run after every page navigation
+        function hookShowPage() {
+            if (window._moreDropdownHooked) return;
+
+            // Try to hook the showPage function
+            if (typeof window.showPage === 'function') {
+                var _origShowPage = window.showPage;
+                window.showPage = function () {
+                    _origShowPage.apply(this, arguments);
+                    // Clean up old dropdowns and re-apply
+                    document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) { d.remove(); });
+                    // Reset ALL nav._moreCount so they get re-processed
+                    document.querySelectorAll('[class*="-nav"]').forEach(function (n) { delete n._moreCount; });
+                    setTimeout(applyMoreDropdown, 300);
+                    setTimeout(applyMoreDropdown, 800); // Double check
+                };
+                window._moreDropdownHooked = true;
+                console.log('More Dropdown v8: Hooked into showPage');
+            }
+        }
+
+        // Also watch for page-container mutations
+        function watchPageContainer() {
+            var pc = document.getElementById('page-container');
+            if (pc && !pc._moreObserver) {
+                pc._moreObserver = new MutationObserver(function () {
+                    // Clean old dropdowns
+                    document.querySelectorAll('.hub-more-dropdown-body').forEach(function (d) { d.remove(); });
+                    document.querySelectorAll('[class*="-nav"]').forEach(function (n) { delete n._moreCount; });
+                    setTimeout(applyMoreDropdown, 300);
+                });
+                pc._moreObserver.observe(pc, { childList: true });
+                console.log('More Dropdown v8: Watching page-container');
+            }
+        }
+
+        // Initial setup
+        function init() {
+            hookShowPage();
+            watchPageContainer();
+            applyMoreDropdown();
+        }
+
+        // Run at various stages to guarantee it works
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                setTimeout(init, 500);
+                setTimeout(init, 1500);
+            });
+        } else {
+            setTimeout(init, 300);
+            setTimeout(init, 1000);
+        }
+
+        // Also run periodically for the first 10 seconds (catches late page loads)
+        var checks = 0;
+        var interval = setInterval(function () {
+            init();
+            if (++checks >= 5) clearInterval(interval);
+        }, 2000);
+
+        window.applyMoreDropdown = applyMoreDropdown;
+        console.log('More Dropdown v8 loaded');
+    })();
+/* END MORE DROPDOWN v8 */
+
+
+/* ============================================================
+   MORE DROPDOWN v8 — Single clean implementation
+   ============================================================ */
+(function() {
+    'use strict';
+    
+    var MAX_VISIBLE = 7;
+    
+    function applyMoreDropdown() {
+        // Find ALL tab navs in the page
+        var navs = document.querySelectorAll(
+            '.dairy-nav, .vet-nav, .en-nav, .crm-nav, .vermi-nav, .tree-nav, ' +
+            '.aqua-nav, .paint-nav, .biogas-nav, .wind-nav, .solar-nav, ' +
+            '.carbon-nav, .fin-nav, .trust-nav, .cmd-nav, .log-nav, ' +
+            '.water-nav, .vedic-nav, [class*="-nav"]'
+        );
+        
+        navs.forEach(function(nav) {
+            // Force no horizontal overflow
+            nav.style.setProperty('overflow', 'hidden', 'important');
+            nav.style.setProperty('overflow-x', 'hidden', 'important');
+            nav.style.setProperty('display', 'flex', 'important');
+            nav.style.setProperty('flex-wrap', 'nowrap', 'important');
+            nav.style.setProperty('align-items', 'center', 'important');
+            
+            // Get all tab buttons (exclude More buttons and dropdown items)
+            var allBtns = Array.from(nav.querySelectorAll('button')).filter(function(b) {
+                return !b.classList.contains('hub-more-btn') && 
+                       !b.classList.contains('dropdown-tab-item');
+            });
+            
+            if (allBtns.length <= MAX_VISIBLE) {
+                // Few enough tabs — show all, remove any existing More
+                allBtns.forEach(function(b) { b.style.removeProperty('display'); });
+                nav.querySelectorAll('.hub-more-btn').forEach(function(b) { b.remove(); });
+                return;
+            }
+            
+            // Already processed and nothing changed? Skip.
+            if (nav._moreCount === allBtns.length) return;
+            nav._moreCount = allBtns.length;
+            
+            // Remove any old More button and dropdown
+            nav.querySelectorAll('.hub-more-btn').forEach(function(b) { b.remove(); });
+            document.querySelectorAll('.hub-more-dropdown-body').forEach(function(d) {
+                if (d._parentNav === nav) d.remove();
+            });
+            
+            // Reset all buttons first
+            allBtns.forEach(function(b) { b.style.removeProperty('display'); });
+            
+            // Calculate how many fit
+            var navW = nav.offsetWidth || nav.clientWidth || 900;
+            var moreW = 130;
+            var available = navW - moreW - 20;
+            var perTab = 120;
+            var maxVis = Math.max(3, Math.min(MAX_VISIBLE, Math.floor(available / perTab)));
+            
+            var visible = allBtns.slice(0, maxVis);
+            var hidden = allBtns.slice(maxVis);
+            
+            if (hidden.length === 0) return;
+            
+            // Hide overflow tabs
+            hidden.forEach(function(btn) {
+                btn.style.setProperty('display', 'none', 'important');
+            });
+            
+            // Create More button
+            var moreBtn = document.createElement('button');
+            moreBtn.type = 'button';
+            moreBtn.className = 'dairy-tab-btn hub-more-btn';
+            moreBtn.style.cssText = 'white-space:nowrap;flex-shrink:0;margin-left:auto;';
+            moreBtn.innerHTML = 'More &#9660; <span style="background:rgba(0,176,255,0.25);color:#42caff;padding:1px 7px;border-radius:99px;font-size:0.65rem;margin-left:5px;font-weight:700">' + hidden.length + '</span>';
+            
+            // Create dropdown on BODY to avoid clipping
+            var dropdown = document.createElement('div');
+            dropdown.className = 'hub-more-dropdown-body';
+            dropdown._parentNav = nav;
+            dropdown.style.cssText = 'position:fixed;display:none;flex-direction:column;gap:3px;min-width:220px;z-index:99999;background:rgba(18,28,50,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:6px;box-shadow:0 12px 48px rgba(0,0,0,0.7);max-height:350px;overflow-y:auto;backdrop-filter:blur(20px);';
+            
+            hidden.forEach(function(btn, i) {
+                var item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'dropdown-tab-item';
+                item.innerHTML = btn.innerHTML;
+                item.style.cssText = 'width:100%;justify-content:flex-start;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:6px;background:transparent;border:1px solid transparent;color:rgba(200,214,229,0.75);font-size:0.78rem;cursor:pointer;transition:background 0.15s ease;text-align:left;white-space:nowrap;font-family:Inter,sans-serif;';
+                item.onmouseenter = function() { item.style.background = 'rgba(255,255,255,0.06)'; item.style.color = '#e0eaf4'; };
+                item.onmouseleave = function() { item.style.background = 'transparent'; item.style.color = 'rgba(200,214,229,0.75)'; };
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // Execute the original button's onclick
+                    var onclick = btn.getAttribute('onclick');
+                    if (onclick) {
+                        try { new Function(onclick).call(btn); } catch(err) { btn.click(); }
+                    } else {
+                        btn.click();
+                    }
+                    dropdown.style.display = 'none';
+                });
+                dropdown.appendChild(item);
+            });
+            
+            document.body.appendChild(dropdown);
+            
+            // Toggle dropdown
+            moreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function(d) {
+                    if (d !== dropdown) d.style.display = 'none';
+                });
+                var isOpen = dropdown.style.display === 'flex';
+                if (isOpen) {
+                    dropdown.style.display = 'none';
+                } else {
+                    var rect = moreBtn.getBoundingClientRect();
+                    dropdown.style.top = (rect.bottom + 4) + 'px';
+                    dropdown.style.left = Math.max(10, rect.right - 240) + 'px';
+                    dropdown.style.display = 'flex';
+                }
+            });
+            
+            // Append More button to nav
+            nav.appendChild(moreBtn);
+        });
+    }
+    
+    // Close dropdowns on outside click
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.hub-more-btn') && !e.target.closest('.hub-more-dropdown-body')) {
+            document.querySelectorAll('.hub-more-dropdown-body').forEach(function(d) {
+                d.style.display = 'none';
+            });
+        }
+    });
+    
+    // Hook into showPage to run after every page navigation
+    function hookShowPage() {
+        if (window._moreDropdownHooked) return;
+        
+        // Try to hook the showPage function
+        if (typeof window.showPage === 'function') {
+            var _origShowPage = window.showPage;
+            window.showPage = function() {
+                _origShowPage.apply(this, arguments);
+                // Clean up old dropdowns and re-apply
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function(d) { d.remove(); });
+                // Reset ALL nav._moreCount so they get re-processed
+                document.querySelectorAll('[class*="-nav"]').forEach(function(n) { delete n._moreCount; });
+                setTimeout(applyMoreDropdown, 300);
+                setTimeout(applyMoreDropdown, 800); // Double check
+            };
+            window._moreDropdownHooked = true;
+            console.log('More Dropdown v8: Hooked into showPage');
+        }
+    }
+    
+    // Also watch for page-container mutations
+    function watchPageContainer() {
+        var pc = document.getElementById('page-container');
+        if (pc && !pc._moreObserver) {
+            pc._moreObserver = new MutationObserver(function() {
+                // Clean old dropdowns
+                document.querySelectorAll('.hub-more-dropdown-body').forEach(function(d) { d.remove(); });
+                document.querySelectorAll('[class*="-nav"]').forEach(function(n) { delete n._moreCount; });
+                setTimeout(applyMoreDropdown, 300);
+            });
+            pc._moreObserver.observe(pc, { childList: true });
+            console.log('More Dropdown v8: Watching page-container');
+        }
+    }
+    
+    // Initial setup
+    function init() {
+        hookShowPage();
+        watchPageContainer();
+        applyMoreDropdown();
+    }
+    
+    // Run at various stages to guarantee it works
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(init, 500);
+            setTimeout(init, 1500);
+        });
+    } else {
+        setTimeout(init, 300);
+        setTimeout(init, 1000);
+    }
+    
+    // Also run periodically for the first 10 seconds (catches late page loads)
+    var checks = 0;
+    var interval = setInterval(function() {
+        init();
+        if (++checks >= 5) clearInterval(interval);
+    }, 2000);
+    
+    window.applyMoreDropdown = applyMoreDropdown;
+    console.log('More Dropdown v8 loaded');
+})();
+/* END MORE DROPDOWN v8 */

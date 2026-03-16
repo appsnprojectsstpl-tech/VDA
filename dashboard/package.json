@@ -1,8 +1,22 @@
 {
+  "name": "vedavathi-dashboard",
+  "version": "1.0.0",
+  "description": "Vedavathi Operations Command Center - Enterprise Management System",
+  "main": "app.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "jsdom": "^28.1.0"
-  }
+  },
+  "keywords": [
+    "erp",
+    "enterprise",
+    "management",
+    "dashboard"
+  ],
+  "author": "Vedavathi Team",
+  "license": "MIT"
 }

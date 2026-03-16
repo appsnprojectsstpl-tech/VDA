@@ -7,8 +7,8 @@
 
 // Configure these via environment variables or server-side proxy
 // For client-side, use empty key - app will run in demo/offline mode
-const SUPABASE_URL = ''; // Set via environment variable in production
-const SUPABASE_KEY = ''; // Never expose in client-side JavaScript!
+const SUPABASE_URL = 'https://e9976ek6.us-east.insforge.app'; // Set via environment variable in production
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODEwNTd9.2QaEjMxNQCrIvn48sFFOoDgSk3YUvLciTVkSO_KG_ss'; // Never expose in client-side JavaScript!
 
 // Build headers dynamically - empty key triggers demo mode
 function getHeaders() {

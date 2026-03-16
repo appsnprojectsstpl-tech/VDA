@@ -1276,3 +1276,165 @@ try {
 } catch (e) {
     console.error('DB Integration Error:', e);
 }
+
+/* ============================================================
+   PHASE 3 — CRM DATA WIRING (LEADS, BUYERS, TASKS)
+   ============================================================ */
+(function() {
+    document.addEventListener("DOMContentLoaded", function() {
+        // 3A. CRM Modals Injection
+        var modalsHtml = `
+        <!-- Lead Modal -->
+        <div id="lead-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:5000;align-items:center;justify-content:center;padding:.8rem" onclick="if(event.target===this)closeModal('lead-modal')">
+            <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:18px;max-width:500px;width:100%;padding:1.5rem">
+                <h2 style="margin-bottom:1rem">Add New Lead</h2>
+                <form id="lead-form" onsubmit="event.preventDefault(); window.insforgeSubmit('crm_leads', 'lead-form', 'lead-status', window.loadCRMLeads)">
+                    <input type="text" name="name" placeholder="Lead Name" required class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" name="company" placeholder="Company" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" name="email" placeholder="Email" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" name="phone" placeholder="Phone" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" name="source" placeholder="Source" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <textarea name="notes" placeholder="Notes" rows="3" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);"></textarea>
+                    <div id="lead-status" style="margin-bottom:10px;font-size:0.9rem"></div>
+                    <button type="submit" class="clean-btn" style="background:var(--accent-primary);color:#fff;padding:8px 16px;border-radius:6px">Save Lead</button>
+                    <button type="button" class="clean-btn" onclick="closeModal('lead-modal')" style="background:var(--bg3);color:var(--text-1);padding:8px 16px;border-radius:6px;margin-left:8px">Cancel</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Buyer Modal -->
+        <div id="buyer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:5000;align-items:center;justify-content:center;padding:.8rem" onclick="if(event.target===this)closeModal('buyer-modal')">
+            <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:18px;max-width:500px;width:100%;padding:1.5rem">
+                <h2 style="margin-bottom:1rem">Convert to Buyer</h2>
+                <form id="buyer-form" onsubmit="event.preventDefault(); window.insforgeSubmit('crm_buyers', 'buyer-form', 'buyer-status', function(){ window.loadCRMBuyers(); closeModal('buyer-modal'); })">
+                    <input type="text" id="buy-company" name="company" placeholder="Company Name" required class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" id="buy-contact" name="contact_person" placeholder="Contact Person" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" id="buy-email" name="email" placeholder="Email" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" id="buy-phone" name="phone" placeholder="Phone" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="text" name="product" placeholder="Product Interest" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <div id="buyer-status" style="margin-bottom:10px;font-size:0.9rem"></div>
+                    <button type="submit" class="clean-btn" style="background:#00e676;color:#111;padding:8px 16px;border-radius:6px">Save Buyer</button>
+                    <button type="button" class="clean-btn" onclick="closeModal('buyer-modal')" style="background:var(--bg3);color:var(--text-1);padding:8px 16px;border-radius:6px;margin-left:8px">Cancel</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Task Modal -->
+        <div id="task-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:5000;align-items:center;justify-content:center;padding:.8rem" onclick="if(event.target===this)closeModal('task-modal')">
+            <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:18px;max-width:500px;width:100%;padding:1.5rem">
+                <h2 style="margin-bottom:1rem">Add Task</h2>
+                <form id="task-form" onsubmit="event.preventDefault(); window.insforgeSubmit('crm_tasks', 'task-form', 'task-status', window.loadCRMTasks)">
+                    <input type="text" name="title" placeholder="Task Title" required class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <textarea name="description" placeholder="Description" rows="2" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);"></textarea>
+                    <input type="text" name="assigned_to" placeholder="Assigned To" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <input type="date" name="due_date" class="form-control" style="width:100%;margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid var(--bd);">
+                    <div id="task-status" style="margin-bottom:10px;font-size:0.9rem"></div>
+                    <button type="submit" class="clean-btn" style="background:#00e676;color:#111;padding:8px 16px;border-radius:6px">Add Task</button>
+                    <button type="button" class="clean-btn" onclick="closeModal('task-modal')" style="background:var(--bg3);color:var(--text-1);padding:8px 16px;border-radius:6px;margin-left:8px">Cancel</button>
+                </form>
+            </div>
+        </div>
+        `;
+        var wrap = document.createElement('div');
+        wrap.innerHTML = modalsHtml;
+        document.body.appendChild(wrap);
+
+        // 3B. Data Loaders
+        window.loadCRMLeads = async function() {
+            try {
+                var rows = await window.insforge.query("SELECT * FROM crm_leads ORDER BY created_at DESC LIMIT 20");
+                var pane = document.getElementById('cm-leads') || document.getElementById('crm-leads');
+                if(!pane) return;
+                var tbl = pane.querySelector('.data-table');
+                if(!tbl) return;
+                
+                tbl.innerHTML = '<tr><th>Lead Name</th><th>Company</th><th>Contact</th><th>Source</th><th>Status</th><th>Actions</th></tr>' + 
+                    (rows && rows.length ? rows.map(function(r) {
+                        var statusCls = (r.status || '').toLowerCase() === 'qualified' ? 'pill-green' : ((r.status || '').toLowerCase() === 'proposal' ? 'pill-blue' : 'pill-amber');
+                        var btnOnclick = "openModal('buyer-modal'); " + 
+                            "document.getElementById('buy-company').value='" + escapeHtml(r.company).replace(/'/g, "\\'") + "'; " +
+                            "document.getElementById('buy-contact').value='" + escapeHtml(r.name).replace(/'/g, "\\'") + "'; " +
+                            "document.getElementById('buy-phone').value='" + escapeHtml(r.phone).replace(/'/g, "\\'") + "'; " +
+                            "document.getElementById('buy-email').value='" + escapeHtml(r.email).replace(/'/g, "\\'") + "';";
+                            
+                        return '<tr>' +
+                            '<td>' + escapeHtml(r.name) + '</td>' +
+                            '<td>' + escapeHtml(r.company) + '</td>' +
+                            '<td>' + escapeHtml(r.phone) + '</td>' +
+                            '<td>' + escapeHtml(r.source) + '</td>' +
+                            '<td><span class="pill ' + statusCls + '">' + escapeHtml(r.status) + '</span></td>' +
+                            '<td><button class="clean-btn" onclick="' + btnOnclick + '" style="color:#00e676;font-size:0.8rem">+ Convert to Buyer</button></td>' +
+                        '</tr>';
+                    }).join('') : '<tr><td colspan="6" style="text-align:center">No leads found</td></tr>');
+                
+                var addBtn = pane.querySelector('button[onclick*="showAddLeadForm"]');
+                if(addBtn) {
+                    addBtn.setAttribute('onclick', "openModal('lead-modal')");
+                }
+            } catch(e) { console.error('Failed to load CRM leads', e); }
+        };
+
+        window.loadCRMBuyers = async function() {
+            try {
+                var rows = await window.insforge.query("SELECT * FROM crm_buyers ORDER BY created_at DESC LIMIT 20");
+                var pane = document.getElementById('cm-buyers') || document.getElementById('crm-buyers');
+                if(!pane) return;
+                var tbl = pane.querySelector('.data-table');
+                if(!tbl) return;
+                
+                tbl.innerHTML = '<tr><th>Company</th><th>Contact</th><th>Product</th><th>Status</th></tr>' + 
+                    (rows && rows.length ? rows.map(function(r) {
+                        return '<tr>' +
+                            '<td>' + escapeHtml(r.company) + '</td>' +
+                            '<td>' + escapeHtml(r.contact_person) + '</td>' +
+                            '<td>' + escapeHtml(r.product) + '</td>' +
+                            '<td><span class="pill pill-green">' + escapeHtml(r.status || 'Active') + '</span></td>' +
+                        '</tr>';
+                    }).join('') : '<tr><td colspan="4" style="text-align:center">No buyers found</td></tr>');
+            } catch(e) { console.error('Failed to load CRM buyers', e); }
+        };
+        
+        window.loadCRMTasks = async function() {
+            try {
+                var rows = await window.insforge.query("SELECT * FROM crm_tasks ORDER BY due_date ASC LIMIT 20");
+                var pane = document.getElementById('cm-tasks') || document.getElementById('crm-tasks');
+                if(!pane) return;
+                var tbl = pane.querySelector('.data-table');
+                if(!tbl) return;
+                
+                tbl.innerHTML = '<tr><th>Task</th><th>Assigned To</th><th>Due Date</th><th>Priority</th><th>Status</th><th>Actions</th></tr>' + 
+                    (rows && rows.length ? rows.map(function(r) {
+                        var statusStr = r.status || '';
+                        var statusCls = statusStr.toLowerCase() === 'completed' ? 'pill-green' : (statusStr.toLowerCase() === 'in_progress' ? 'pill-blue' : 'pill-amber');
+                        var btnHtml = statusStr.toLowerCase() === 'completed' 
+                            ? 'Done' 
+                            : '<button class="clean-btn" onclick="window.editRow(\'crm_tasks\', \'' + r.id + '\', {status: \'completed\'}, window.loadCRMTasks)" style="color:#00e676;font-size:0.8rem">✓ Mark Done</button>';
+                        return '<tr>' +
+                            '<td>' + escapeHtml(r.title) + '</td>' +
+                            '<td>' + escapeHtml(r.assigned_to) + '</td>' +
+                            '<td>' + escapeHtml(r.due_date) + '</td>' +
+                            '<td>' + escapeHtml(r.priority) + '</td>' +
+                            '<td><span class="pill ' + statusCls + '">' + escapeHtml(r.status) + '</span></td>' +
+                            '<td>' + btnHtml + '</td>' +
+                        '</tr>';
+                    }).join('') : '<tr><td colspan="6" style="text-align:center">No tasks found</td></tr>');
+                    
+                var filterDiv = pane.querySelector('div[style*="display:flex"]');
+                if(filterDiv && !filterDiv.querySelector('.add-task-btn')) {
+                    var btn = document.createElement('button');
+                    btn.className = 'clean-btn add-task-btn';
+                    btn.textContent = '➕ Add Task';
+                    btn.onclick = function() { openModal('task-modal'); };
+                    filterDiv.appendChild(btn);
+                }
+            } catch(e) { console.error('Failed to load CRM tasks', e); }
+        };
+
+        // Delay until InsForge is fully ready
+        setTimeout(function() {
+            if(window.loadCRMLeads) window.loadCRMLeads();
+            if(window.loadCRMBuyers) window.loadCRMBuyers();
+            if(window.loadCRMTasks) window.loadCRMTasks();
+        }, 3000);
+    });
+})();
